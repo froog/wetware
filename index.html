@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WETWARE :: VAPORWAVE GENERATOR</title>
+<style>
+  :root {
+    --pink: #ff2d95;
+    --pink-soft: #ffcce5;
+    --pink-deep: #b02070;
+    --cyan: #00d4d4;
+    --cyan-soft: #b8f0f0;
+    --cyan-deep: #007a7a;
+    --violet: #a06bff;
+    --bg-dark: #0a0014;
+    --bg-checker: #1a0033;
+    --panel: #ffe6f5;
+    --panel-alt: #e6f0ff;
+    --ink: #1a0033;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    color: var(--ink);
+    font-family: 'ChicagoFLF', 'Chicago', 'Geneva', 'Monaco', 'Tahoma', 'Courier New', monospace;
+    height: 100%; overflow: hidden;
+    background:
+      repeating-conic-gradient(var(--bg-checker) 0% 25%, transparent 0% 50%) 0 0 / 4px 4px,
+      var(--bg-dark);
+  }
+  #app {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    height: 100vh;
+  }
+  #controls {
+    background:
+      repeating-conic-gradient(rgba(255,45,149,0.05) 0% 25%, transparent 0% 50%) 0 0 / 4px 4px,
+      linear-gradient(180deg, #1a0033 0%, #0a0014 100%);
+    border-right: 2px solid #000;
+    overflow-y: auto;
+    padding: 10px 12px 80px;
+  }
+  #controls::-webkit-scrollbar { width: 14px; background: var(--panel-alt); border-left: 1px solid #000; }
+  #controls::-webkit-scrollbar-thumb {
+    background: var(--pink-soft);
+    border: 1px solid #000;
+    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 var(--pink-deep);
+  }
+
+  /* MENU BAR */
+  .menubar {
+    background: #fff;
+    border: 1.5px solid #000;
+    padding: 3px 8px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #000;
+    margin-bottom: 8px;
+    display: flex; gap: 14px;
+    box-shadow: 2px 2px 0 #000;
+  }
+  .menubar .lozenge {
+    display: inline-block; width: 12px; height: 12px;
+    background: #ff2d95;
+    border: 1.5px solid #000;
+    transform: rotate(45deg);
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .menubar span { font-weight: bold; }
+
+  /* TITLE BAR (WETWARE header) */
+  .titlebar {
+    border: 1.5px solid #000;
+    background:
+      repeating-linear-gradient(to bottom, var(--pink) 0 2px, #fff 2px 4px);
+    padding: 5px 0;
+    color: #000;
+    margin-bottom: 10px;
+    box-shadow: 3px 3px 0 #000;
+    position: relative;
+    text-align: center;
+  }
+  .titlebar::before, .titlebar::after {
+    content: '';
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px;
+    background: #fff;
+    border: 1.5px solid #000;
+    box-shadow: inset -1.5px -1.5px 0 #888;
+  }
+  .titlebar::before { left: 6px; }
+  .titlebar::after  { right: 6px; }
+  .titlebar h1 {
+    margin: 0;
+    display: inline-block;
+    font-size: 14px;
+    letter-spacing: 4px;
+    background: #fff;
+    border-left: 1.5px solid #000;
+    border-right: 1.5px solid #000;
+    padding: 1px 12px;
+    font-weight: bold;
+  }
+  .tag {
+    background: var(--panel-alt);
+    border: 1.5px solid #000;
+    padding: 4px 8px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ink);
+    margin-bottom: 10px;
+    box-shadow: 2px 2px 0 #000;
+  }
+
+  /* BUTTONS — chunky Mac classic with vaporwave tint */
+  .top-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  button {
+    background: var(--pink-soft);
+    color: #000;
+    border: 1.5px solid #000;
+    box-shadow: inset 1.5px 1.5px 0 #fff, inset -1.5px -1.5px 0 var(--pink-deep), 2px 2px 0 #000;
+    padding: 7px 6px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: filter 0.08s;
+  }
+  button:hover { filter: brightness(1.05); }
+  button:active {
+    box-shadow: inset 1.5px 1.5px 0 var(--pink-deep), inset -1.5px -1.5px 0 #fff, 0 0 0 #000;
+    transform: translate(2px, 2px);
+  }
+  button.cyan {
+    background: var(--cyan-soft);
+    box-shadow: inset 1.5px 1.5px 0 #fff, inset -1.5px -1.5px 0 var(--cyan-deep), 2px 2px 0 #000;
+  }
+  button.cyan:active {
+    box-shadow: inset 1.5px 1.5px 0 var(--cyan-deep), inset -1.5px -1.5px 0 #fff, 0 0 0 #000;
+    transform: translate(2px, 2px);
+  }
+
+  /* SELECT */
+  select {
+    width: 100%;
+    background: #fff;
+    color: #000;
+    border: 1.5px solid #000;
+    box-shadow: inset 1.5px 1.5px 0 #d0d0d0, 2px 2px 0 #000;
+    padding: 5px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+
+  /* WINDOWS — each <details> is a Mac window */
+  details {
+    border: 1.5px solid #000;
+    background: var(--panel);
+    margin-bottom: 10px;
+    box-shadow: 3px 3px 0 #000;
+  }
+  details:nth-of-type(even) { background: var(--panel-alt); }
+
+  summary {
+    cursor: pointer;
+    padding: 4px 26px 4px 26px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #000;
+    background:
+      repeating-linear-gradient(to bottom, var(--pink) 0 2px, #fff 2px 4px);
+    position: relative;
+    user-select: none;
+    border-bottom: 1.5px solid #000;
+    list-style: none;
+    text-align: center;
+    font-weight: bold;
+  }
+  summary::-webkit-details-marker { display: none; }
+  /* close box (left) and zoom box (right) */
+  summary::before, summary::after {
+    content: '';
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 12px; height: 12px;
+    background: #fff;
+    border: 1.5px solid #000;
+  }
+  summary::before { left: 6px; }
+  summary::after  { right: 6px; }
+  summary .label {
+    background: #fff;
+    border-left: 1.5px solid #000;
+    border-right: 1.5px solid #000;
+    padding: 0 8px;
+    display: inline-block;
+  }
+  .section-body { padding: 8px 10px 10px; }
+
+  /* CONTROLS */
+  .ctl, .ctl-wide, .checkrow { margin-bottom: 5px; font-size: 10px; }
+  .ctl {
+    display: grid;
+    grid-template-columns: 90px 1fr 42px;
+    gap: 6px;
+    align-items: center;
+  }
+  .ctl-wide {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 6px;
+    align-items: center;
+  }
+  .checkrow {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ctl label, .ctl-wide label, .checkrow label {
+    color: var(--ink);
+    letter-spacing: 1px;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  .ctl .val {
+    font-size: 9px;
+    color: var(--pink-deep);
+    background: #fff;
+    border: 1.5px solid #000;
+    padding: 1px 3px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: bold;
+  }
+
+  /* PIXEL SLIDERS */
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 14px;
+    background: linear-gradient(to right, var(--pink), var(--cyan));
+    border: 1.5px solid #000;
+    outline: none;
+    padding: 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 18px;
+    background: var(--panel);
+    border: 1.5px solid #000;
+    box-shadow: inset 1.5px 1.5px 0 #fff, inset -1.5px -1.5px 0 var(--pink-deep);
+    cursor: pointer;
+    margin-top: 0;
+  }
+  input[type=color] {
+    width: 100%; height: 22px;
+    background: #fff;
+    border: 1.5px solid #000;
+    cursor: pointer;
+    padding: 1px;
+  }
+  input[type=checkbox] {
+    width: 14px; height: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: #fff;
+    border: 1.5px solid #000;
+    position: relative;
+    cursor: pointer;
+    margin: 0;
+  }
+  input[type=checkbox]:checked::after {
+    content: 'X';
+    position: absolute;
+    inset: -2px 0 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--pink);
+    line-height: 1;
+  }
+
+  /* STAGE */
+  #stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      repeating-conic-gradient(var(--bg-checker) 0% 25%, transparent 0% 50%) 0 0 / 4px 4px,
+      radial-gradient(circle at 30% 30%, rgba(255,45,149,0.1), transparent 60%),
+      radial-gradient(circle at 70% 70%, rgba(0,240,255,0.1), transparent 60%),
+      #050008;
+    overflow: hidden;
+    position: relative;
+    padding: 24px;
+  }
+  /* Stage "window" frame around canvas — Mac document window */
+  .stage-window {
+    border: 1.5px solid #000;
+    background: #000;
+    box-shadow: 6px 6px 0 #000, 0 0 60px rgba(255, 45, 149, 0.5), 0 0 100px rgba(0, 240, 255, 0.3);
+    max-width: 95%; max-height: 92%;
+  }
+  .stage-titlebar {
+    background:
+      repeating-linear-gradient(to bottom, var(--pink) 0 2px, #fff 2px 4px);
+    border-bottom: 1.5px solid #000;
+    padding: 4px 28px;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 4px;
+    font-weight: bold;
+    color: #000;
+    position: relative;
+  }
+  .stage-titlebar::before, .stage-titlebar::after {
+    content: '';
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 13px; height: 13px;
+    background: #fff;
+    border: 1.5px solid #000;
+  }
+  .stage-titlebar::before { left: 6px; }
+  .stage-titlebar::after  { right: 6px; }
+  .stage-titlebar .label {
+    background: #fff;
+    border-left: 1.5px solid #000;
+    border-right: 1.5px solid #000;
+    padding: 1px 10px;
+  }
+  #canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: calc(92vh - 32px);
+  }
+
+  .footer {
+    position: absolute;
+    bottom: 10px; right: 16px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #000;
+    background: var(--cyan-soft);
+    border: 1.5px solid #000;
+    padding: 3px 8px;
+    box-shadow: 2px 2px 0 #000;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="controls">
+    <div class="menubar">
+      <span class="lozenge"></span>
+      <span>File</span><span>Edit</span><span>Vibes</span><span>Help</span>
+    </div>
+
+    <div class="titlebar"><h1>WETWARE.APP</h1></div>
+    <div class="tag">// VAPORWAVE GEN v1.0 // System 7.5.3</div>
+
+    <div class="top-buttons">
+      <button id="randomize">RANDOMIZE</button>
+      <button id="export" class="cyan">EXPORT PNG</button>
+    </div>
+
+    <select id="preset"></select>
+
+    <details open>
+      <summary><span class="label">SKY</span></summary>
+      <div class="section-body" id="sec-sky"></div>
+    </details>
+
+    <details open>
+      <summary><span class="label">SUN</span></summary>
+      <div class="section-body" id="sec-sun"></div>
+    </details>
+
+    <details open>
+      <summary><span class="label">MOUNTAINS</span></summary>
+      <div class="section-body" id="sec-mountains"></div>
+    </details>
+
+    <details open>
+      <summary><span class="label">GRID FLOOR</span></summary>
+      <div class="section-body" id="sec-grid"></div>
+    </details>
+
+    <details>
+      <summary><span class="label">PALMS</span></summary>
+      <div class="section-body" id="sec-palms"></div>
+    </details>
+
+    <details>
+      <summary><span class="label">OBJECTS</span></summary>
+      <div class="section-body" id="sec-objects"></div>
+    </details>
+
+    <details>
+      <summary><span class="label">FX :: GLITCH</span></summary>
+      <div class="section-body" id="sec-fx"></div>
+    </details>
+
+    <details>
+      <summary><span class="label">SOUND :: WEIRD VIBES</span></summary>
+      <div class="section-body" id="sec-sound">
+        <div class="top-buttons" style="margin-bottom:10px">
+          <button id="sound-play" class="cyan">PLAY</button>
+          <button id="sound-stop">STOP</button>
+        </div>
+        <div id="sec-sound-dials"></div>
+      </div>
+    </details>
+  </aside>
+  <main id="stage">
+    <div class="stage-window">
+      <div class="stage-titlebar"><span class="label">untitled-vaporwave.psd</span></div>
+      <canvas id="canvas" width="1280" height="720"></canvas>
+    </div>
+    <div class="footer">WETWARE.SYS &mdash; RUNTIME OK</div>
+  </main>
+</div>
+
+<script>
+//=========================================================================
+// PRESETS
+//=========================================================================
+const PRESETS = {
+  'Miami Vice': {
+    sky:       { topColor: '#1a0033', horizonColor: '#ff2d95' },
+    sun:       { colorTop: '#ffe66d', colorBottom: '#ff2d95' },
+    mountains: { colorFar: '#3d0066', colorNear: '#7a00cc' },
+    grid:      { color: '#ff2d95' },
+  },
+  'Outrun': {
+    sky:       { topColor: '#0d0221', horizonColor: '#ff6600' },
+    sun:       { colorTop: '#ffec27', colorBottom: '#ff003c' },
+    mountains: { colorFar: '#1a0033', colorNear: '#330033' },
+    grid:      { color: '#ff003c' },
+  },
+  'Pastel Dream': {
+    sky:       { topColor: '#b693fe', horizonColor: '#ffafcc' },
+    sun:       { colorTop: '#fff5b8', colorBottom: '#ff8fab' },
+    mountains: { colorFar: '#cdb4db', colorNear: '#a2d2ff' },
+    grid:      { color: '#bde0fe' },
+  },
+  'Cyber Night': {
+    sky:       { topColor: '#02010a', horizonColor: '#240046' },
+    sun:       { colorTop: '#ff00ff', colorBottom: '#00f0ff' },
+    mountains: { colorFar: '#0a043c', colorNear: '#160040' },
+    grid:      { color: '#00f0ff' },
+  },
+  'Tropic Punch': {
+    sky:       { topColor: '#3a0ca3', horizonColor: '#f72585' },
+    sun:       { colorTop: '#ffd60a', colorBottom: '#ff8500' },
+    mountains: { colorFar: '#2c0735', colorNear: '#560bad' },
+    grid:      { color: '#f72585' },
+  },
+  'Acid Wash': {
+    sky:       { topColor: '#0b0c10', horizonColor: '#1f4068' },
+    sun:       { colorTop: '#39ff14', colorBottom: '#ff00ff' },
+    mountains: { colorFar: '#000000', colorNear: '#0b0c10' },
+    grid:      { color: '#39ff14' },
+  },
+  'Cotton Candy': {
+    sky:       { topColor: '#c084fc', horizonColor: '#fbcfe8' },
+    sun:       { colorTop: '#fef3c7', colorBottom: '#f9a8d4' },
+    mountains: { colorFar: '#a78bfa', colorNear: '#f0abfc' },
+    grid:      { color: '#fda4af' },
+  },
+};
+
+//=========================================================================
+// STATE
+//=========================================================================
+const state = {
+  sky: { topColor: '#1a0033', horizonColor: '#ff2d95', starDensity: 0.5, starBrightness: 0.9 },
+  sun: { x: 0.5, y: 0.55, radius: 0.22, colorTop: '#ffe66d', colorBottom: '#ff2d95', bars: true, barCount: 14, glow: 0.6 },
+  mountains: { layers: 3, height: 0.45, jaggedness: 0.55, snow: true, wireframe: false, colorFar: '#3d0066', colorNear: '#7a00cc', seed: 1337 },
+  grid: { color: '#ff2d95', density: 16, glow: 0.6, perspective: 0.7 },
+  palms: { count: 2, side: 'both', scale: 0.6 },
+  objects: {
+    planet: false, planetX: 0.78, planetY: 0.22, planetScale: 0.5, planetColor: '#ff6ec7', planetRings: true,
+    statue: false, statueX: 0.3, statueScale: 0.6,
+    kanji: false, kanjiCount: 3, kanjiScale: 0.5, kanjiColor: '#ff2d95',
+    dolphin: false, dolphinCount: 2, dolphinScale: 0.5,
+  },
+  fx: { chromatic: 0.35, scanlines: 0.45, grain: 0.25, glitch: 0.15, vignette: 0.5 },
+  sound: {
+    masterVol: 0.4,
+    droneFreq: 55,
+    droneDetune: 12,
+    padShimmer: 0.5,
+    crackle: 0.35,
+    rain: 0.0,
+    lpfCutoff: 0.55,
+    lfoRate: 0.18,
+    reverb: 0.6,
+  },
+};
+
+//=========================================================================
+// CONTROL DEFINITIONS  (declarative -> auto-builds UI)
+//=========================================================================
+const CONTROLS = {
+  sky: [
+    { k: 'topColor',       type: 'color', label: 'Top color' },
+    { k: 'horizonColor',   type: 'color', label: 'Horizon' },
+    { k: 'starDensity',    type: 'range', label: 'Star density',  min: 0, max: 1, step: 0.01 },
+    { k: 'starBrightness', type: 'range', label: 'Star bright.',  min: 0, max: 1, step: 0.01 },
+  ],
+  sun: [
+    { k: 'x',           type: 'range', label: 'X position', min: 0, max: 1, step: 0.01 },
+    { k: 'y',           type: 'range', label: 'Y position', min: 0.2, max: 0.85, step: 0.01 },
+    { k: 'radius',      type: 'range', label: 'Size',       min: 0.05, max: 0.4, step: 0.005 },
+    { k: 'colorTop',    type: 'color', label: 'Top color' },
+    { k: 'colorBottom', type: 'color', label: 'Bottom color' },
+    { k: 'glow',        type: 'range', label: 'Glow',       min: 0, max: 1, step: 0.01 },
+    { k: 'bars',        type: 'check', label: 'Horiz. bars' },
+    { k: 'barCount',    type: 'range', label: 'Bar count',  min: 4, max: 30, step: 1 },
+  ],
+  mountains: [
+    { k: 'layers',     type: 'range', label: 'Layers',     min: 1, max: 5, step: 1 },
+    { k: 'height',     type: 'range', label: 'Height',     min: 0.1, max: 0.9, step: 0.01 },
+    { k: 'jaggedness', type: 'range', label: 'Jaggedness', min: 0, max: 1, step: 0.01 },
+    { k: 'colorFar',   type: 'color', label: 'Far color' },
+    { k: 'colorNear',  type: 'color', label: 'Near color' },
+    { k: 'snow',       type: 'check', label: 'Snow caps' },
+    { k: 'wireframe',  type: 'check', label: 'Wireframe' },
+  ],
+  grid: [
+    { k: 'color',       type: 'color', label: 'Line color' },
+    { k: 'density',     type: 'range', label: 'Density',     min: 4, max: 30, step: 1 },
+    { k: 'glow',        type: 'range', label: 'Glow',        min: 0, max: 1, step: 0.01 },
+    { k: 'perspective', type: 'range', label: 'Perspective', min: 0.2, max: 1, step: 0.01 },
+  ],
+  palms: [
+    { k: 'count',  type: 'range', label: 'Count', min: 0, max: 6, step: 1 },
+    { k: 'side',   type: 'select', label: 'Side', options: ['left','right','both'] },
+    { k: 'scale',  type: 'range', label: 'Scale', min: 0.2, max: 1.2, step: 0.01 },
+  ],
+  fx: [
+    { k: 'chromatic',  type: 'range', label: 'Chromatic',  min: 0, max: 1, step: 0.01 },
+    { k: 'scanlines',  type: 'range', label: 'Scanlines',  min: 0, max: 1, step: 0.01 },
+    { k: 'grain',      type: 'range', label: 'Grain',      min: 0, max: 1, step: 0.01 },
+    { k: 'glitch',     type: 'range', label: 'Glitch',     min: 0, max: 1, step: 0.01 },
+    { k: 'vignette',   type: 'range', label: 'Vignette',   min: 0, max: 1, step: 0.01 },
+  ],
+  objects: [
+    { k: 'planet',       type: 'check', label: 'Planet' },
+    { k: 'planetX',      type: 'range', label: 'Planet X',     min: 0, max: 1, step: 0.01 },
+    { k: 'planetY',      type: 'range', label: 'Planet Y',     min: 0, max: 0.6, step: 0.01 },
+    { k: 'planetScale',  type: 'range', label: 'Planet scale', min: 0.1, max: 1.2, step: 0.01 },
+    { k: 'planetColor',  type: 'color', label: 'Planet color' },
+    { k: 'planetRings',  type: 'check', label: 'Rings' },
+    { k: 'statue',       type: 'check', label: 'Statue' },
+    { k: 'statueX',      type: 'range', label: 'Statue X',     min: 0, max: 1, step: 0.01 },
+    { k: 'statueScale',  type: 'range', label: 'Statue scale', min: 0.3, max: 1.5, step: 0.01 },
+    { k: 'kanji',        type: 'check', label: 'Kanji' },
+    { k: 'kanjiCount',   type: 'range', label: 'Kanji count',  min: 1, max: 6, step: 1 },
+    { k: 'kanjiScale',   type: 'range', label: 'Kanji scale',  min: 0.4, max: 2.0, step: 0.01 },
+    { k: 'kanjiColor',   type: 'color', label: 'Kanji color' },
+    { k: 'dolphin',      type: 'check', label: 'Dolphins' },
+    { k: 'dolphinCount', type: 'range', label: 'Dolphin count', min: 1, max: 5, step: 1 },
+    { k: 'dolphinScale', type: 'range', label: 'Dolphin scale', min: 0.3, max: 1.4, step: 0.01 },
+  ],
+  sound: [
+    { k: 'masterVol',  type: 'range', label: 'Master vol', min: 0, max: 1, step: 0.01 },
+    { k: 'droneFreq',  type: 'range', label: 'Drone Hz',   min: 30, max: 220, step: 1 },
+    { k: 'droneDetune',type: 'range', label: 'Detune',     min: 0, max: 80, step: 1 },
+    { k: 'padShimmer', type: 'range', label: 'Pad shimmer',min: 0, max: 1, step: 0.01 },
+    { k: 'crackle',    type: 'range', label: 'Vinyl crackle', min: 0, max: 1, step: 0.01 },
+    { k: 'rain',       type: 'range', label: 'Rain',       min: 0, max: 1, step: 0.01 },
+    { k: 'lpfCutoff',  type: 'range', label: 'LPF cutoff', min: 0.05, max: 1, step: 0.01 },
+    { k: 'lfoRate',    type: 'range', label: 'LFO rate',   min: 0.02, max: 2, step: 0.01 },
+    { k: 'reverb',     type: 'range', label: 'Reverb',     min: 0, max: 1, step: 0.01 },
+  ],
+};
+
+//=========================================================================
+// BUILD UI
+//=========================================================================
+function buildUI() {
+  for (const [section, defs] of Object.entries(CONTROLS)) {
+    const hostId = section === 'sound' ? 'sec-sound-dials' : 'sec-' + section;
+    const host = document.getElementById(hostId);
+    if (!host) continue;
+    for (const def of defs) {
+      host.appendChild(buildControl(section, def));
+    }
+  }
+  // Preset dropdown
+  const psel = document.getElementById('preset');
+  for (const name of Object.keys(PRESETS)) {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    psel.appendChild(opt);
+  }
+  psel.addEventListener('change', () => { applyPreset(psel.value); requestRender(); });
+}
+
+function buildControl(section, def) {
+  const v = state[section][def.k];
+  if (def.type === 'check') {
+    const row = document.createElement('div');
+    row.className = 'checkrow';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!v;
+    cb.id = `c-${section}-${def.k}`;
+    cb.addEventListener('input', () => { state[section][def.k] = cb.checked; requestRender(); });
+    const lbl = document.createElement('label');
+    lbl.htmlFor = cb.id;
+    lbl.textContent = def.label;
+    row.append(cb, lbl);
+    return row;
+  }
+  if (def.type === 'select') {
+    const row = document.createElement('div');
+    row.className = 'ctl-wide';
+    const lbl = document.createElement('label');
+    lbl.textContent = def.label;
+    const sel = document.createElement('select');
+    for (const opt of def.options) {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      sel.appendChild(o);
+    }
+    sel.value = v;
+    sel.addEventListener('change', () => { state[section][def.k] = sel.value; requestRender(); });
+    row.append(lbl, sel);
+    return row;
+  }
+  if (def.type === 'color') {
+    const row = document.createElement('div');
+    row.className = 'ctl-wide';
+    const lbl = document.createElement('label');
+    lbl.textContent = def.label;
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = v;
+    inp.id = `c-${section}-${def.k}`;
+    inp.addEventListener('input', () => { state[section][def.k] = inp.value; requestRender(); });
+    row.append(lbl, inp);
+    return row;
+  }
+  // range
+  const row = document.createElement('div');
+  row.className = 'ctl';
+  const lbl = document.createElement('label');
+  lbl.textContent = def.label;
+  const inp = document.createElement('input');
+  inp.type = 'range';
+  inp.min = def.min; inp.max = def.max; inp.step = def.step;
+  inp.value = v;
+  inp.id = `c-${section}-${def.k}`;
+  const val = document.createElement('div');
+  val.className = 'val';
+  val.textContent = formatVal(v, def.step);
+  inp.addEventListener('input', () => {
+    const n = def.step >= 1 ? parseInt(inp.value, 10) : parseFloat(inp.value);
+    state[section][def.k] = n;
+    val.textContent = formatVal(n, def.step);
+    if (section === 'sound') Sound.update(); else requestRender();
+  });
+  row.append(lbl, inp, val);
+  return row;
+}
+
+function formatVal(v, step) {
+  if (typeof v !== 'number') return String(v);
+  return step >= 1 ? String(v) : v.toFixed(2);
+}
+
+function syncUIFromState() {
+  for (const [section, defs] of Object.entries(CONTROLS)) {
+    for (const def of defs) {
+      const id = `c-${section}-${def.k}`;
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const v = state[section][def.k];
+      if (def.type === 'check') el.checked = !!v;
+      else el.value = v;
+      // update value text for ranges
+      if (def.type === 'range') {
+        const sibling = el.parentElement.querySelector('.val');
+        if (sibling) sibling.textContent = formatVal(v, def.step);
+      }
+    }
+  }
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  for (const [section, vals] of Object.entries(p)) {
+    Object.assign(state[section], vals);
+  }
+  syncUIFromState();
+}
+
+//=========================================================================
+// RANDOM (seeded for mountains, free for everything else on randomize)
+//=========================================================================
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function rand(min, max) { return min + Math.random() * (max - min); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function randomize() {
+  // Pick a random preset as the base palette
+  const presetNames = Object.keys(PRESETS);
+  applyPreset(pick(presetNames));
+  // Then jitter
+  state.sky.starDensity = rand(0.2, 0.9);
+  state.sky.starBrightness = rand(0.5, 1);
+  state.sun.x = rand(0.25, 0.75);
+  state.sun.y = rand(0.45, 0.7);
+  state.sun.radius = rand(0.14, 0.3);
+  state.sun.bars = Math.random() > 0.15;
+  state.sun.barCount = Math.floor(rand(8, 22));
+  state.sun.glow = rand(0.3, 1);
+  state.mountains.layers = Math.floor(rand(2, 5));
+  state.mountains.height = rand(0.3, 0.65);
+  state.mountains.jaggedness = rand(0.25, 0.85);
+  state.mountains.snow = Math.random() > 0.4;
+  state.mountains.wireframe = Math.random() > 0.7;
+  state.mountains.seed = Math.floor(Math.random() * 1e9);
+  state.grid.density = Math.floor(rand(8, 24));
+  state.grid.glow = rand(0.3, 1);
+  state.grid.perspective = rand(0.5, 1);
+  state.palms.count = Math.floor(rand(0, 5));
+  state.palms.side = pick(['left','right','both']);
+  state.palms.scale = rand(0.4, 1);
+  state.fx.chromatic = rand(0.1, 0.7);
+  state.fx.scanlines = rand(0.15, 0.7);
+  state.fx.grain = rand(0.05, 0.45);
+  state.fx.glitch = Math.random() > 0.6 ? rand(0.1, 0.45) : 0;
+  state.fx.vignette = rand(0.25, 0.7);
+  // Roll dice on objects too
+  state.objects.planet = Math.random() > 0.55;
+  state.objects.planetX = rand(0.1, 0.9);
+  state.objects.planetY = rand(0.05, 0.4);
+  state.objects.planetScale = rand(0.3, 0.9);
+  state.objects.planetColor = pick(['#ff6ec7','#9b5cff','#00f0ff','#ff8500','#39ff14','#ffd60a']);
+  state.objects.planetRings = Math.random() > 0.5;
+  state.objects.statue = Math.random() > 0.7;
+  state.objects.statueX = rand(0.15, 0.85);
+  state.objects.statueScale = rand(0.45, 1.1);
+  state.objects.kanji = Math.random() > 0.6;
+  state.objects.kanjiCount = Math.floor(rand(1, 5));
+  state.objects.kanjiScale = rand(0.6, 1.6);
+  state.objects.kanjiColor = pick(['#ff2d95','#00f0ff','#fff5b8','#39ff14','#ffffff']);
+  state.objects.dolphin = Math.random() > 0.7;
+  state.objects.dolphinCount = Math.floor(rand(1, 4));
+  state.objects.dolphinScale = rand(0.4, 1.1);
+  syncUIFromState();
+  requestRender();
+}
+
+//=========================================================================
+// RENDER PIPELINE
+//=========================================================================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const sceneCanvas = document.createElement('canvas');
+sceneCanvas.width = W; sceneCanvas.height = H;
+const sctx = sceneCanvas.getContext('2d');
+
+let pendingRender = false;
+function requestRender() {
+  if (pendingRender) return;
+  pendingRender = true;
+  requestAnimationFrame(() => { pendingRender = false; render(); });
+}
+
+function render() {
+  // Reset scene
+  sctx.clearRect(0, 0, W, H);
+  drawSky(sctx);
+  drawStars(sctx);
+  if (state.objects.planet) drawPlanet(sctx);
+  drawSun(sctx);
+  drawMountains(sctx);
+  drawGrid(sctx);
+  drawPalms(sctx);
+  if (state.objects.statue) drawStatue(sctx);
+  if (state.objects.dolphin) drawDolphins(sctx);
+  if (state.objects.kanji) drawKanji(sctx);
+
+  // Composite to main with chromatic aberration
+  applyChromatic(sceneCanvas, ctx);
+
+  // Post effects on main
+  applyGlitch(ctx);
+  applyScanlines(ctx);
+  applyGrain(ctx);
+  applyVignette(ctx);
+}
+
+//-------------------------------------------------------------------------
+// SKY
+//-------------------------------------------------------------------------
+function horizonY() { return state.sun.y * H; }
+
+function drawSky(c) {
+  const hY = horizonY();
+  // Sky gradient above horizon
+  const g = c.createLinearGradient(0, 0, 0, hY);
+  g.addColorStop(0, state.sky.topColor);
+  g.addColorStop(1, state.sky.horizonColor);
+  c.fillStyle = g;
+  c.fillRect(0, 0, W, hY);
+  // Floor base (so palms/effects under horizon have a base)
+  c.fillStyle = '#02000a';
+  c.fillRect(0, hY, W, H - hY);
+}
+
+function drawStars(c) {
+  const hY = horizonY();
+  const density = state.sky.starDensity;
+  const bright = state.sky.starBrightness;
+  const count = Math.floor(density * 360);
+  // Use a stable seeded RNG keyed off seed so stars don't reshuffle on slider tweak
+  const r = mulberry32(state.mountains.seed ^ 0xBEEF);
+  for (let i = 0; i < count; i++) {
+    const x = r() * W;
+    const y = r() * hY * 0.92;
+    const sz = r() * 1.4 + 0.2;
+    const a = (0.4 + r() * 0.6) * bright;
+    c.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    c.fillRect(x, y, sz, sz);
+  }
+}
+
+//-------------------------------------------------------------------------
+// SUN
+//-------------------------------------------------------------------------
+function drawSun(c) {
+  const cx = state.sun.x * W;
+  const cy = state.sun.y * H;
+  const rad = state.sun.radius * H;
+
+  // Glow halo
+  if (state.sun.glow > 0) {
+    const halo = c.createRadialGradient(cx, cy, rad * 0.4, cx, cy, rad * 2.2);
+    halo.addColorStop(0, hexA(state.sun.colorBottom, state.sun.glow * 0.45));
+    halo.addColorStop(1, hexA(state.sun.colorBottom, 0));
+    c.fillStyle = halo;
+    c.fillRect(0, 0, W, H);
+  }
+
+  // Sun disc with vertical gradient
+  const g = c.createLinearGradient(cx, cy - rad, cx, cy + rad);
+  g.addColorStop(0, state.sun.colorTop);
+  g.addColorStop(1, state.sun.colorBottom);
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(cx, cy, rad, 0, Math.PI * 2);
+  c.fill();
+
+  // Horizontal bars (cut-outs across the lower half)
+  if (state.sun.bars) {
+    c.save();
+    c.beginPath();
+    c.arc(cx, cy, rad, 0, Math.PI * 2);
+    c.clip();
+    const barCount = state.sun.barCount;
+    c.globalCompositeOperation = 'destination-out';
+    // Start bars from middle and go down
+    const startY = cy - rad * 0.05;
+    const endY = cy + rad;
+    const span = endY - startY;
+    for (let i = 0; i < barCount; i++) {
+      const t = i / barCount;
+      const barH = Math.max(1.5, (1 - t) * span * 0.07);
+      const gap = span / barCount;
+      const y = startY + i * gap + t * 6;
+      c.fillStyle = '#000';
+      c.fillRect(cx - rad, y, rad * 2, barH);
+    }
+    c.restore();
+  }
+}
+
+//-------------------------------------------------------------------------
+// MOUNTAINS
+//-------------------------------------------------------------------------
+function drawMountains(c) {
+  const hY = horizonY();
+  const layers = state.mountains.layers;
+  const baseHeight = state.mountains.height * H * 0.55;
+  const jag = state.mountains.jaggedness;
+
+  for (let l = 0; l < layers; l++) {
+    const t = layers === 1 ? 0 : l / (layers - 1);
+    const layerHeight = baseHeight * (0.5 + t * 0.55);
+    const yOffset = hY - (layers - 1 - l) * 18;
+    const color = mixColor(state.mountains.colorFar, state.mountains.colorNear, t);
+    const seed = state.mountains.seed + l * 7919;
+    drawMountainLayer(c, yOffset, layerHeight, jag, color, seed, l, layers);
+  }
+}
+
+function drawMountainLayer(c, yBase, height, jag, color, seed, layerIdx, layerCount) {
+  const rng = mulberry32(seed);
+  // Build heightmap
+  const samples = 220;
+  const heights = new Array(samples);
+  // Layered noise
+  for (let i = 0; i < samples; i++) {
+    let h = 0;
+    let amp = 1, freq = 1;
+    for (let o = 0; o < 4; o++) {
+      const x = i / samples * freq * 6;
+      h += amp * (Math.sin(x * 2 + rng() * 6.28) + Math.cos(x * 1.3 + rng() * 6.28)) * 0.5;
+      amp *= 0.55; freq *= 2;
+    }
+    heights[i] = h;
+  }
+  // Normalize
+  let mn = Infinity, mx = -Infinity;
+  for (const h of heights) { if (h < mn) mn = h; if (h > mx) mx = h; }
+  for (let i = 0; i < samples; i++) {
+    const t = (heights[i] - mn) / (mx - mn + 1e-9);
+    heights[i] = t * height * (0.4 + jag * 0.9);
+  }
+
+  // Draw filled mountain polygon
+  c.beginPath();
+  c.moveTo(0, yBase);
+  for (let i = 0; i < samples; i++) {
+    const x = (i / (samples - 1)) * W;
+    const y = yBase - heights[i];
+    c.lineTo(x, y);
+  }
+  c.lineTo(W, yBase);
+  c.closePath();
+  c.fillStyle = color;
+  c.fill();
+
+  // Snow caps on the top layer(s)
+  if (state.mountains.snow && layerIdx >= layerCount - 2) {
+    const snowThreshold = (Math.max(...heights)) * 0.7;
+    c.fillStyle = 'rgba(255, 230, 255, 0.85)';
+    for (let i = 1; i < samples - 1; i++) {
+      if (heights[i] > snowThreshold) {
+        const x = (i / (samples - 1)) * W;
+        const y = yBase - heights[i];
+        const w = W / samples * 1.6;
+        c.beginPath();
+        c.moveTo(x - w, y + 6);
+        c.lineTo(x, y);
+        c.lineTo(x + w, y + 6);
+        c.closePath();
+        c.fill();
+      }
+    }
+  }
+
+  // Wireframe topo overlay
+  if (state.mountains.wireframe) {
+    c.save();
+    c.beginPath();
+    c.moveTo(0, yBase);
+    for (let i = 0; i < samples; i++) {
+      const x = (i / (samples - 1)) * W;
+      const y = yBase - heights[i];
+      c.lineTo(x, y);
+    }
+    c.lineTo(W, yBase);
+    c.closePath();
+    c.clip();
+    c.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+    c.lineWidth = 1;
+    const lines = 14;
+    for (let i = 1; i <= lines; i++) {
+      const y = yBase - (i / lines) * height;
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(W, y);
+      c.stroke();
+    }
+    c.restore();
+  }
+}
+
+//-------------------------------------------------------------------------
+// GRID FLOOR
+//-------------------------------------------------------------------------
+function drawGrid(c) {
+  const hY = horizonY();
+  const floorH = H - hY;
+  if (floorH <= 0) return;
+  const persp = state.grid.perspective;
+  const vpX = W / 2;
+  const vpY = hY;
+
+  c.save();
+  c.strokeStyle = state.grid.color;
+  c.lineWidth = 1.4;
+  if (state.grid.glow > 0) {
+    c.shadowColor = state.grid.color;
+    c.shadowBlur = 12 * state.grid.glow;
+  }
+
+  // Vertical perspective lines (converge to vanishing point)
+  const verts = state.grid.density;
+  for (let i = -verts; i <= verts; i++) {
+    const t = i / verts;
+    const xBottom = vpX + t * W * 0.85 / Math.max(0.3, persp);
+    c.beginPath();
+    c.moveTo(vpX + t * 30 * persp, vpY);
+    c.lineTo(xBottom, H);
+    c.stroke();
+  }
+
+  // Horizontal lines, spacing increases as we go down (closer to viewer)
+  const horz = state.grid.density;
+  for (let i = 1; i <= horz; i++) {
+    const t = i / horz;
+    // Non-linear (closer rows further apart): t^2.4
+    const y = vpY + Math.pow(t, 2.4) * floorH;
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(W, y);
+    c.stroke();
+  }
+
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// PALMS
+//-------------------------------------------------------------------------
+function drawPalms(c) {
+  const n = state.palms.count;
+  if (n <= 0) return;
+  const side = state.palms.side;
+  const scale = state.palms.scale;
+  const baseY = horizonY() + 12;
+  const r = mulberry32(state.mountains.seed ^ 0xC0FFEE);
+
+  const positions = [];
+  for (let i = 0; i < n; i++) {
+    let xT;
+    const isLeft = side === 'left' ? true : side === 'right' ? false : (r() < 0.5);
+    if (isLeft) xT = r() * 0.22;
+    else        xT = 0.78 + r() * 0.22;
+    const s = (0.7 + r() * 0.6) * scale;
+    positions.push({ x: xT * W, s, isLeft });
+  }
+  // Draw further palms first (smaller ones)
+  positions.sort((a, b) => a.s - b.s);
+  for (const p of positions) {
+    drawPalm(c, p.x, baseY, p.s, p.isLeft);
+  }
+}
+
+function drawPalm(c, x, baseY, scale, leansLeft) {
+  const trunkH = 230 * scale;
+  const lean = leansLeft ? -1 : 1;
+  c.save();
+  c.fillStyle = '#0a0014';
+  c.strokeStyle = '#0a0014';
+  c.lineWidth = 6 * scale;
+  c.lineCap = 'round';
+
+  // Trunk (curved)
+  c.beginPath();
+  c.moveTo(x, baseY);
+  c.quadraticCurveTo(x + lean * 14 * scale, baseY - trunkH * 0.5, x + lean * 28 * scale, baseY - trunkH);
+  c.stroke();
+
+  // Crown center
+  const cx = x + lean * 28 * scale;
+  const cy = baseY - trunkH;
+
+  // Fronds
+  c.strokeStyle = '#0a0014';
+  c.lineWidth = 3 * scale;
+  const fronds = 9;
+  for (let i = 0; i < fronds; i++) {
+    const a = (i / fronds) * Math.PI * 2 + 0.15;
+    const len = (70 + Math.sin(i * 1.3) * 18) * scale;
+    const ex = cx + Math.cos(a) * len;
+    const ey = cy + Math.sin(a) * len * 0.7 - 8 * scale;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.quadraticCurveTo(cx + Math.cos(a) * len * 0.5, cy + Math.sin(a) * len * 0.5 - 22 * scale, ex, ey);
+    c.stroke();
+    // little leaflets
+    c.lineWidth = 1.5 * scale;
+    for (let k = 0; k < 5; k++) {
+      const tt = (k + 1) / 6;
+      const px = cx + (ex - cx) * tt;
+      const py = cy + (ey - cy) * tt - 18 * scale * (1 - tt);
+      c.beginPath();
+      c.moveTo(px, py);
+      c.lineTo(px + Math.cos(a + 0.5) * 8 * scale, py + Math.sin(a + 0.5) * 8 * scale - 3);
+      c.moveTo(px, py);
+      c.lineTo(px + Math.cos(a - 0.5) * 8 * scale, py + Math.sin(a - 0.5) * 8 * scale - 3);
+      c.stroke();
+    }
+    c.lineWidth = 3 * scale;
+  }
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// PLANET
+//-------------------------------------------------------------------------
+function drawPlanet(c) {
+  const o = state.objects;
+  const cx = o.planetX * W;
+  const cy = o.planetY * H;
+  const rad = o.planetScale * H * 0.16;
+
+  // Soft glow
+  const halo = c.createRadialGradient(cx, cy, rad * 0.3, cx, cy, rad * 2);
+  halo.addColorStop(0, hexA(o.planetColor, 0.5));
+  halo.addColorStop(1, hexA(o.planetColor, 0));
+  c.fillStyle = halo;
+  c.fillRect(cx - rad * 2.4, cy - rad * 2.4, rad * 4.8, rad * 4.8);
+
+  // Disc with gradient shading
+  const g = c.createRadialGradient(cx - rad * 0.3, cy - rad * 0.3, rad * 0.2, cx, cy, rad);
+  g.addColorStop(0, lighten(o.planetColor, 0.3));
+  g.addColorStop(0.6, o.planetColor);
+  g.addColorStop(1, darken(o.planetColor, 0.5));
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(cx, cy, rad, 0, Math.PI * 2);
+  c.fill();
+
+  // Surface bands
+  c.save();
+  c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI * 2); c.clip();
+  c.globalAlpha = 0.18;
+  c.strokeStyle = darken(o.planetColor, 0.5);
+  c.lineWidth = 2;
+  for (let i = -4; i <= 4; i++) {
+    const y = cy + i * rad * 0.18;
+    c.beginPath();
+    c.moveTo(cx - rad, y + Math.sin(i) * 4);
+    c.bezierCurveTo(cx - rad/2, y - 4, cx + rad/2, y + 4, cx + rad, y);
+    c.stroke();
+  }
+  c.restore();
+
+  // Rings
+  if (o.planetRings) {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate(-0.35);
+    c.scale(1, 0.22);
+    c.strokeStyle = hexA(o.planetColor, 0.9);
+    c.lineWidth = 4;
+    c.beginPath(); c.arc(0, 0, rad * 1.55, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = hexA(lighten(o.planetColor, 0.3), 0.7);
+    c.lineWidth = 2;
+    c.beginPath(); c.arc(0, 0, rad * 1.78, 0, Math.PI * 2); c.stroke();
+    c.restore();
+  }
+}
+
+//-------------------------------------------------------------------------
+// STATUE (Greek bust silhouette - low-poly procedural)
+//-------------------------------------------------------------------------
+function drawStatue(c) {
+  const o = state.objects;
+  const cx = o.statueX * W;
+  const baseY = horizonY() + 4;
+  const s = o.statueScale;
+  const h = 260 * s;
+
+  c.save();
+  c.translate(cx, baseY);
+
+  // Pedestal
+  c.fillStyle = '#1a0033';
+  c.fillRect(-44 * s, -16 * s, 88 * s, 16 * s);
+  c.fillStyle = '#2d004d';
+  c.fillRect(-40 * s, -12 * s, 80 * s, 4 * s);
+
+  // Body / robe (silhouette gradient)
+  const bodyG = c.createLinearGradient(0, -h * 0.7, 0, 0);
+  bodyG.addColorStop(0, '#f0d8ff');
+  bodyG.addColorStop(1, '#7a4eb0');
+  c.fillStyle = bodyG;
+
+  c.beginPath();
+  c.moveTo(-50 * s, -16 * s);
+  c.lineTo(-40 * s, -h * 0.45);
+  c.lineTo(-60 * s, -h * 0.55);
+  c.lineTo(-44 * s, -h * 0.62);
+  c.lineTo(-36 * s, -h * 0.78);
+  c.lineTo(-22 * s, -h * 0.86);
+  c.lineTo(22 * s, -h * 0.86);
+  c.lineTo(36 * s, -h * 0.78);
+  c.lineTo(44 * s, -h * 0.62);
+  c.lineTo(60 * s, -h * 0.55);
+  c.lineTo(40 * s, -h * 0.45);
+  c.lineTo(50 * s, -16 * s);
+  c.closePath();
+  c.fill();
+
+  // Head
+  c.beginPath();
+  c.ellipse(0, -h * 0.92, 28 * s, 36 * s, 0, 0, Math.PI * 2);
+  c.fill();
+
+  // Hair / face shading
+  c.fillStyle = 'rgba(60, 0, 90, 0.5)';
+  c.beginPath();
+  c.ellipse(6 * s, -h * 0.94, 22 * s, 32 * s, 0, 0, Math.PI * 2);
+  c.fill();
+
+  // Nose (profile hint)
+  c.fillStyle = '#f0d8ff';
+  c.beginPath();
+  c.moveTo(-22 * s, -h * 0.93);
+  c.lineTo(-30 * s, -h * 0.91);
+  c.lineTo(-22 * s, -h * 0.89);
+  c.closePath();
+  c.fill();
+
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// KANJI / random characters (drawn with canvas text)
+//-------------------------------------------------------------------------
+const KANJI_POOL = ['美','夢','空','光','水','風','音','心','時','未','来','愛','宇','宙','星','月','花','雪','闇','幻','想','虚','無','電','波','現','実'];
+function drawKanji(c) {
+  const o = state.objects;
+  const r = mulberry32(state.mountains.seed ^ 0x4321);
+  const count = o.kanjiCount;
+  c.save();
+  c.fillStyle = o.kanjiColor;
+  c.shadowColor = o.kanjiColor;
+  c.shadowBlur = 18;
+  for (let i = 0; i < count; i++) {
+    const ch = KANJI_POOL[Math.floor(r() * KANJI_POOL.length)];
+    const size = (60 + r() * 120) * o.kanjiScale;
+    const x = 60 + r() * (W - 120);
+    const y = 90 + r() * (horizonY() - 100);
+    c.font = `bold ${size}px "MS Mincho", "Hiragino Mincho ProN", serif`;
+    c.globalAlpha = 0.55 + r() * 0.35;
+    c.fillText(ch, x, y);
+  }
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// DOLPHINS (leaping silhouettes)
+//-------------------------------------------------------------------------
+function drawDolphins(c) {
+  const o = state.objects;
+  const r = mulberry32(state.mountains.seed ^ 0xD01F1);
+  const count = o.dolphinCount;
+  c.save();
+  c.fillStyle = '#0a0014';
+  for (let i = 0; i < count; i++) {
+    const x = (0.1 + r() * 0.8) * W;
+    const yBase = horizonY() + 20 + r() * 80;
+    const s = (0.6 + r() * 0.6) * o.dolphinScale;
+    const flip = r() < 0.5;
+    drawDolphin(c, x, yBase, s, flip);
+  }
+  c.restore();
+}
+
+function drawDolphin(c, x, y, s, flip) {
+  c.save();
+  c.translate(x, y);
+  if (flip) c.scale(-1, 1);
+  c.scale(s, s);
+  // Arched body
+  c.beginPath();
+  c.moveTo(-60, 0);
+  c.bezierCurveTo(-40, -90, 40, -90, 60, 0);
+  c.bezierCurveTo(45, -10, 30, -25, 18, -35);
+  c.bezierCurveTo(36, -30, 48, -10, 50, 0);
+  c.lineTo(45, 6);
+  c.bezierCurveTo(30, -5, 10, -12, -20, -10);
+  c.bezierCurveTo(-40, -8, -55, -4, -60, 0);
+  c.closePath();
+  c.fill();
+  // Dorsal fin
+  c.beginPath();
+  c.moveTo(-8, -52);
+  c.lineTo(-2, -80);
+  c.lineTo(10, -50);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// COLOR HELPERS
+//-------------------------------------------------------------------------
+function lighten(hex, amt) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.min(255, r + 255 * amt) | 0},${Math.min(255, g + 255 * amt) | 0},${Math.min(255, b + 255 * amt) | 0})`;
+}
+function darken(hex, amt) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.max(0, r - 255 * amt) | 0},${Math.max(0, g - 255 * amt) | 0},${Math.max(0, b - 255 * amt) | 0})`;
+}
+
+//=========================================================================
+// FX
+//=========================================================================
+function applyChromatic(srcCanvas, destCtx) {
+  const amount = state.fx.chromatic;
+  if (amount < 0.01) {
+    destCtx.clearRect(0, 0, W, H);
+    destCtx.drawImage(srcCanvas, 0, 0);
+    return;
+  }
+  const offset = Math.round(amount * 10);
+  const src = srcCanvas.getContext('2d').getImageData(0, 0, W, H);
+  const out = destCtx.createImageData(W, H);
+  const s = src.data, o = out.data;
+  for (let y = 0; y < H; y++) {
+    const rowBase = y * W * 4;
+    for (let x = 0; x < W; x++) {
+      const xR = x - offset; const xB = x + offset;
+      const iR = (xR < 0 ? 0 : xR >= W ? W - 1 : xR);
+      const iB = (xB < 0 ? 0 : xB >= W ? W - 1 : xB);
+      const i = rowBase + x * 4;
+      o[i]     = s[rowBase + iR * 4];     // R
+      o[i + 1] = s[rowBase + x * 4 + 1];  // G
+      o[i + 2] = s[rowBase + iB * 4 + 2]; // B
+      o[i + 3] = 255;
+    }
+  }
+  destCtx.putImageData(out, 0, 0);
+}
+
+function applyGlitch(c) {
+  const amt = state.fx.glitch;
+  if (amt < 0.01) return;
+  const slices = Math.floor(amt * 14) + 1;
+  for (let i = 0; i < slices; i++) {
+    if (Math.random() > 0.65) continue;
+    const sy = Math.floor(Math.random() * H);
+    const sh = Math.floor(Math.random() * 22) + 3;
+    const dx = (Math.random() - 0.5) * amt * 140;
+    if (sy + sh > H) continue;
+    const img = c.getImageData(0, sy, W, sh);
+    c.clearRect(0, sy, W, sh);
+    c.putImageData(img, dx, sy);
+    // Fill the gap left behind
+    if (dx > 0) {
+      const edge = c.getImageData(0, sy, 2, sh);
+      // (leave as-is; works fine visually)
+    }
+  }
+}
+
+function applyScanlines(c) {
+  const amt = state.fx.scanlines;
+  if (amt < 0.01) return;
+  c.save();
+  c.globalAlpha = amt * 0.45;
+  c.fillStyle = '#000';
+  for (let y = 0; y < H; y += 3) {
+    c.fillRect(0, y, W, 1);
+  }
+  c.restore();
+}
+
+function applyGrain(c) {
+  const amt = state.fx.grain;
+  if (amt < 0.01) return;
+  const img = c.getImageData(0, 0, W, H);
+  const d = img.data;
+  const strength = amt * 60;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * strength;
+    d[i]   = clamp255(d[i] + n);
+    d[i+1] = clamp255(d[i+1] + n);
+    d[i+2] = clamp255(d[i+2] + n);
+  }
+  c.putImageData(img, 0, 0);
+}
+
+function applyVignette(c) {
+  const amt = state.fx.vignette;
+  if (amt < 0.01) return;
+  const g = c.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.35, W/2, H/2, Math.max(W,H) * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, `rgba(0,0,0,${(amt * 0.85).toFixed(3)})`);
+  c.fillStyle = g;
+  c.fillRect(0, 0, W, H);
+}
+
+//=========================================================================
+// UTIL
+//=========================================================================
+function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+
+function hexToRgb(hex) {
+  const h = hex.replace('#','');
+  return {
+    r: parseInt(h.substring(0,2), 16),
+    g: parseInt(h.substring(2,4), 16),
+    b: parseInt(h.substring(4,6), 16),
+  };
+}
+function hexA(hex, a) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function mixColor(hexA_, hexB, t) {
+  const a = hexToRgb(hexA_), b = hexToRgb(hexB);
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+//=========================================================================
+// SOUND :: weird ambient vibes via Web Audio
+//=========================================================================
+const Sound = (() => {
+  let ctx = null;
+  let nodes = null; // bag of nodes when running
+  let running = false;
+  let lfoFreqVal = 0.2; // smooth handoff value
+
+  function ensureCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  function makeReverbImpulse(ac, duration, decay) {
+    const rate = ac.sampleRate;
+    const len = rate * duration;
+    const ir = ac.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return ir;
+  }
+
+  function makeNoiseBuffer(ac, seconds) {
+    const len = ac.sampleRate * seconds;
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  function start() {
+    if (running) return;
+    const ac = ensureCtx();
+    if (ac.state === 'suspended') ac.resume();
+    const s = state.sound;
+
+    const master = ac.createGain();
+    master.gain.value = s.masterVol;
+
+    const lpf = ac.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = 200 + s.lpfCutoff * 6000;
+    lpf.Q.value = 1.2;
+
+    const wetGain = ac.createGain();
+    wetGain.gain.value = s.reverb;
+    const dryGain = ac.createGain();
+    dryGain.gain.value = 1 - s.reverb * 0.5;
+    const conv = ac.createConvolver();
+    conv.buffer = makeReverbImpulse(ac, 4.5, 2.5);
+
+    // Bus: sources -> lpf -> (dry + (wet -> conv)) -> master -> destination
+    lpf.connect(dryGain);
+    lpf.connect(conv);
+    conv.connect(wetGain);
+    dryGain.connect(master);
+    wetGain.connect(master);
+    master.connect(ac.destination);
+
+    // --- Drone: 2 detuned sawtooths + sub sine ---
+    const droneA = ac.createOscillator();
+    const droneB = ac.createOscillator();
+    const sub    = ac.createOscillator();
+    droneA.type = 'sawtooth';
+    droneB.type = 'sawtooth';
+    sub.type = 'sine';
+    droneA.frequency.value = s.droneFreq;
+    droneB.frequency.value = s.droneFreq;
+    droneB.detune.value = s.droneDetune;
+    sub.frequency.value = s.droneFreq / 2;
+
+    const droneGain = ac.createGain();
+    droneGain.gain.value = 0.35;
+    droneA.connect(droneGain);
+    droneB.connect(droneGain);
+    const subGain = ac.createGain();
+    subGain.gain.value = 0.3;
+    sub.connect(subGain);
+    droneGain.connect(lpf);
+    subGain.connect(lpf);
+
+    // --- LFO modulating LPF cutoff ---
+    const lfo = ac.createOscillator();
+    const lfoGain = ac.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = s.lfoRate;
+    lfoGain.gain.value = 800;
+    lfo.connect(lfoGain);
+    lfoGain.connect(lpf.frequency);
+
+    // --- Pad shimmer: noise -> bandpass with slow chirp ---
+    const noiseBuf = makeNoiseBuffer(ac, 4);
+    const padSrc = ac.createBufferSource();
+    padSrc.buffer = noiseBuf; padSrc.loop = true;
+    const padBP = ac.createBiquadFilter();
+    padBP.type = 'bandpass';
+    padBP.frequency.value = 1800;
+    padBP.Q.value = 5;
+    const padGain = ac.createGain();
+    padGain.gain.value = s.padShimmer * 0.18;
+    padSrc.connect(padBP);
+    padBP.connect(padGain);
+    padGain.connect(lpf);
+    // Slow chirp on the bandpass
+    const padLfo = ac.createOscillator();
+    const padLfoGain = ac.createGain();
+    padLfo.type = 'sine';
+    padLfo.frequency.value = 0.07;
+    padLfoGain.gain.value = 600;
+    padLfo.connect(padLfoGain);
+    padLfoGain.connect(padBP.frequency);
+
+    // --- Vinyl crackle: noise -> highpass, gated by random impulses via gain ramps ---
+    const crackleSrc = ac.createBufferSource();
+    crackleSrc.buffer = makeNoiseBuffer(ac, 4);
+    crackleSrc.loop = true;
+    const crackleHP = ac.createBiquadFilter();
+    crackleHP.type = 'highpass';
+    crackleHP.frequency.value = 2200;
+    const crackleGain = ac.createGain();
+    crackleGain.gain.value = s.crackle * 0.18;
+    crackleSrc.connect(crackleHP);
+    crackleHP.connect(crackleGain);
+    crackleGain.connect(master); // bypass reverb for crisper crackles
+
+    // --- Rain: noise -> lowpass ---
+    const rainSrc = ac.createBufferSource();
+    rainSrc.buffer = makeNoiseBuffer(ac, 4);
+    rainSrc.loop = true;
+    const rainLP = ac.createBiquadFilter();
+    rainLP.type = 'lowpass';
+    rainLP.frequency.value = 1400;
+    const rainGain = ac.createGain();
+    rainGain.gain.value = s.rain * 0.25;
+    rainSrc.connect(rainLP);
+    rainLP.connect(rainGain);
+    rainGain.connect(lpf);
+
+    // Start all
+    const t = ac.currentTime + 0.05;
+    droneA.start(t); droneB.start(t); sub.start(t);
+    lfo.start(t); padSrc.start(t); padLfo.start(t);
+    crackleSrc.start(t); rainSrc.start(t);
+
+    // Fade in
+    master.gain.setValueAtTime(0, ac.currentTime);
+    master.gain.linearRampToValueAtTime(s.masterVol, ac.currentTime + 1.2);
+
+    nodes = {
+      master, lpf, dryGain, wetGain,
+      droneA, droneB, sub, droneGain, subGain,
+      lfo, lfoGain, padSrc, padBP, padGain, padLfo, padLfoGain,
+      crackleSrc, crackleHP, crackleGain,
+      rainSrc, rainLP, rainGain,
+    };
+    running = true;
+  }
+
+  function stop() {
+    if (!running || !nodes) return;
+    const ac = ctx;
+    const now = ac.currentTime;
+    nodes.master.gain.cancelScheduledValues(now);
+    nodes.master.gain.linearRampToValueAtTime(0, now + 0.4);
+    const n = nodes;
+    setTimeout(() => {
+      try {
+        ['droneA','droneB','sub','lfo','padSrc','padLfo','crackleSrc','rainSrc'].forEach(k => n[k].stop());
+      } catch (_) {}
+    }, 500);
+    nodes = null;
+    running = false;
+  }
+
+  function update() {
+    if (!running || !nodes) return;
+    const s = state.sound;
+    const t = ctx.currentTime;
+    const ramp = (param, v) => param.setTargetAtTime(v, t, 0.05);
+    ramp(nodes.master.gain, s.masterVol);
+    ramp(nodes.droneA.frequency, s.droneFreq);
+    ramp(nodes.droneB.frequency, s.droneFreq);
+    nodes.droneB.detune.setTargetAtTime(s.droneDetune, t, 0.05);
+    ramp(nodes.sub.frequency, s.droneFreq / 2);
+    ramp(nodes.lpf.frequency, 200 + s.lpfCutoff * 6000);
+    ramp(nodes.lfo.frequency, s.lfoRate);
+    ramp(nodes.padGain.gain, s.padShimmer * 0.18);
+    ramp(nodes.crackleGain.gain, s.crackle * 0.18);
+    ramp(nodes.rainGain.gain, s.rain * 0.25);
+    ramp(nodes.wetGain.gain, s.reverb);
+    ramp(nodes.dryGain.gain, 1 - s.reverb * 0.5);
+  }
+
+  return { start, stop, update, get running() { return running; } };
+})();
+
+//=========================================================================
+// EXPORT
+//=========================================================================
+function exportPNG() {
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wetware-vaporwave-${Date.now()}.png`;
+  a.click();
+}
+
+//=========================================================================
+// BOOT
+//=========================================================================
+buildUI();
+document.getElementById('preset').value = 'Miami Vice';
+applyPreset('Miami Vice');
+document.getElementById('randomize').addEventListener('click', randomize);
+document.getElementById('export').addEventListener('click', exportPNG);
+document.getElementById('sound-play').addEventListener('click', () => Sound.start());
+document.getElementById('sound-stop').addEventListener('click', () => Sound.stop());
+syncUIFromState();
+render();
+
+// Keyboard shortcuts: R = randomize, E = export
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'r' || e.key === 'R') randomize();
+  if (e.key === 'e' || e.key === 'E') exportPNG();
+});
+</script>
+</body>
+</html>
