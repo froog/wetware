@@ -1,0 +1,2199 @@
+import './style.css';
+import { makeDraggable } from './drag.js';
+import { initWinamp } from './winamp.js';
+// PRESETS
+//=========================================================================
+const PRESETS = {
+  'Miami Vice': {
+    sky:       { topColor: '#1a0033', horizonColor: '#ff2d95' },
+    sun:       { colorTop: '#ffe66d', colorBottom: '#ff2d95' },
+    mountains: { colorFar: '#3d0066', colorNear: '#7a00cc' },
+    grid:      { color: '#ff2d95' },
+  },
+  'Outrun': {
+    sky:       { topColor: '#0d0221', horizonColor: '#ff6600' },
+    sun:       { colorTop: '#ffec27', colorBottom: '#ff003c' },
+    mountains: { colorFar: '#1a0033', colorNear: '#330033' },
+    grid:      { color: '#ff003c' },
+  },
+  'Pastel Dream': {
+    sky:       { topColor: '#b693fe', horizonColor: '#ffafcc' },
+    sun:       { colorTop: '#fff5b8', colorBottom: '#ff8fab' },
+    mountains: { colorFar: '#cdb4db', colorNear: '#a2d2ff' },
+    grid:      { color: '#bde0fe' },
+  },
+  'Cyber Night': {
+    sky:       { topColor: '#02010a', horizonColor: '#240046' },
+    sun:       { colorTop: '#ff00ff', colorBottom: '#00f0ff' },
+    mountains: { colorFar: '#0a043c', colorNear: '#160040' },
+    grid:      { color: '#00f0ff' },
+  },
+  'Tropic Punch': {
+    sky:       { topColor: '#3a0ca3', horizonColor: '#f72585' },
+    sun:       { colorTop: '#ffd60a', colorBottom: '#ff8500' },
+    mountains: { colorFar: '#2c0735', colorNear: '#560bad' },
+    grid:      { color: '#f72585' },
+  },
+  'Acid Wash': {
+    sky:       { topColor: '#0b0c10', horizonColor: '#1f4068' },
+    sun:       { colorTop: '#39ff14', colorBottom: '#ff00ff' },
+    mountains: { colorFar: '#000000', colorNear: '#0b0c10' },
+    grid:      { color: '#39ff14' },
+  },
+  'Cotton Candy': {
+    sky:       { topColor: '#c084fc', horizonColor: '#fbcfe8' },
+    sun:       { colorTop: '#fef3c7', colorBottom: '#f9a8d4' },
+    mountains: { colorFar: '#a78bfa', colorNear: '#f0abfc' },
+    grid:      { color: '#fda4af' },
+  },
+};
+
+//=========================================================================
+// STATE
+//=========================================================================
+const state = {
+  sky: { topColor: '#1a0033', horizonColor: '#ff2d95', starDensity: 0.5, starBrightness: 0.9 },
+  sun: { x: 0.5, y: 0.55, radius: 0.22, colorTop: '#ffe66d', colorBottom: '#ff2d95', bars: true, barCount: 14, glow: 0.6 },
+  mountains: { layers: 3, height: 0.45, jaggedness: 0.55, snow: true, wireframe: false, colorFar: '#3d0066', colorNear: '#7a00cc', seed: 1337 },
+  grid: { color: '#ff2d95', density: 16, glow: 0.6, perspective: 0.7 },
+  palms: { count: 2, side: 'both', scale: 0.6, spread: 0.22, vary: 0.4, depth: 0.0 },
+  objects: {
+    planet: false, planetX: 0.78, planetY: 0.22, planetScale: 0.5, planetColor: '#ff6ec7', planetRings: true,
+    statue: false, statueX: 0.3, statueScale: 0.6, statueColor: '#ffffff',
+    kanji: false, kanjiCount: 3, kanjiScale: 0.5, kanjiColor: '#ff2d95',
+    bitmaps: true, bitmapCount: 4, bitmapScale: 0.7, bitmapColor: '#ffffff',
+    rays: false, rayCount: 18, rayLength: 0.6, rayWidth: 0.4,
+  },
+  fx: { chromatic: 0.35, scanlines: 0.45, grain: 0.25, glitch: 0.15, vignette: 0.5 },
+  static: {
+    tvStatic: 0.0,
+    rgbGhost: 0.0,
+    waveWarp: 0.0,
+    hueShift: 0.0,
+    posterize: 0.0,
+    badBlocks: 0.0,
+    tapeBands: 0.0,
+    invertPulse: 0.0,
+    recBadge: false,
+    vhsCounter: false,
+    hexMarquee: false,
+    animate: false,
+  },
+  android: {
+    matrix: 0.0,
+    matrixSpeed: 0.6,
+    matrixColor: '#00ff66',
+    matrixChars: 'kana',
+    ascii: false,
+    asciiSize: 10,
+    reticle: false,
+    polygons: false,
+    polyCount: 9,
+    polySides: 6,
+    telemetry: false,
+    rollingBand: 0.0,
+    scanSweep: false,
+    anaglyph: 0.0,
+  },
+  sound: {
+    masterVol: 0.4,
+    droneFreq: 55,
+    droneDetune: 12,
+    padShimmer: 0.5,
+    crackle: 0.35,
+    rain: 0.0,
+    lpfCutoff: 0.55,
+    lfoRate: 0.18,
+    reverb: 0.6,
+  },
+};
+
+//=========================================================================
+// CONTROL DEFINITIONS  (declarative -> auto-builds UI)
+//=========================================================================
+const CONTROLS = {
+  sky: [
+    { k: 'topColor',       type: 'color', label: 'Top color' },
+    { k: 'horizonColor',   type: 'color', label: 'Horizon' },
+    { k: 'starDensity',    type: 'range', label: 'Star density',  min: 0, max: 1, step: 0.01 },
+    { k: 'starBrightness', type: 'range', label: 'Star bright.',  min: 0, max: 1, step: 0.01 },
+  ],
+  sun: [
+    { k: 'x',           type: 'range', label: 'X position', min: 0, max: 1, step: 0.01 },
+    { k: 'y',           type: 'range', label: 'Y position', min: 0.2, max: 0.85, step: 0.01 },
+    { k: 'radius',      type: 'range', label: 'Size',       min: 0.05, max: 0.4, step: 0.005 },
+    { k: 'colorTop',    type: 'color', label: 'Top color' },
+    { k: 'colorBottom', type: 'color', label: 'Bottom color' },
+    { k: 'glow',        type: 'range', label: 'Glow',       min: 0, max: 1, step: 0.01 },
+    { k: 'bars',        type: 'check', label: 'Horiz. bars' },
+    { k: 'barCount',    type: 'range', label: 'Bar count',  min: 4, max: 30, step: 1 },
+  ],
+  mountains: [
+    { k: 'layers',     type: 'range', label: 'Layers',     min: 1, max: 5, step: 1 },
+    { k: 'height',     type: 'range', label: 'Height',     min: 0.1, max: 0.9, step: 0.01 },
+    { k: 'jaggedness', type: 'range', label: 'Jaggedness', min: 0, max: 1, step: 0.01 },
+    { k: 'colorFar',   type: 'color', label: 'Far color' },
+    { k: 'colorNear',  type: 'color', label: 'Near color' },
+    { k: 'snow',       type: 'check', label: 'Snow caps' },
+    { k: 'wireframe',  type: 'check', label: 'Wireframe' },
+  ],
+  grid: [
+    { k: 'color',       type: 'color', label: 'Line color' },
+    { k: 'density',     type: 'range', label: 'Density',     min: 4, max: 30, step: 1 },
+    { k: 'glow',        type: 'range', label: 'Glow',        min: 0, max: 1, step: 0.01 },
+    { k: 'perspective', type: 'range', label: 'Perspective', min: 0.2, max: 1, step: 0.01 },
+  ],
+  palms: [
+    { k: 'count',  type: 'range', label: 'Count',    min: 0, max: 16, step: 1 },
+    { k: 'side',   type: 'select', label: 'Side',    options: ['left','right','both'] },
+    { k: 'scale',  type: 'range', label: 'Scale',    min: 0.15, max: 1.6, step: 0.01 },
+    { k: 'spread', type: 'range', label: 'Spread',   min: 0.05, max: 1, step: 0.01 },
+    { k: 'vary',   type: 'range', label: 'Size vary', min: 0, max: 1, step: 0.01 },
+    { k: 'depth',  type: 'range', label: 'Depth',    min: 0, max: 1, step: 0.01 },
+  ],
+  fx: [
+    { k: 'chromatic',  type: 'range', label: 'Chromatic',  min: 0, max: 1, step: 0.01 },
+    { k: 'scanlines',  type: 'range', label: 'Scanlines',  min: 0, max: 1, step: 0.01 },
+    { k: 'grain',      type: 'range', label: 'Grain',      min: 0, max: 1, step: 0.01 },
+    { k: 'glitch',     type: 'range', label: 'Glitch',     min: 0, max: 1, step: 0.01 },
+    { k: 'vignette',   type: 'range', label: 'Vignette',   min: 0, max: 1, step: 0.01 },
+  ],
+  objects: [
+    { k: 'planet',       type: 'check', label: 'Planet' },
+    { k: 'planetX',      type: 'range', label: 'Planet X',     min: 0, max: 1, step: 0.01 },
+    { k: 'planetY',      type: 'range', label: 'Planet Y',     min: 0, max: 0.6, step: 0.01 },
+    { k: 'planetScale',  type: 'range', label: 'Planet scale', min: 0.1, max: 1.2, step: 0.01 },
+    { k: 'planetColor',  type: 'color', label: 'Planet color' },
+    { k: 'planetRings',  type: 'check', label: 'Rings' },
+    { k: 'statue',       type: 'check', label: 'David' },
+    { k: 'statueX',      type: 'range', label: 'David X',     min: 0, max: 1, step: 0.01 },
+    { k: 'statueScale',  type: 'range', label: 'David scale', min: 0.3, max: 1.6, step: 0.01 },
+    { k: 'statueColor',  type: 'color', label: 'David tint' },
+    { k: 'kanji',        type: 'check', label: 'Kanji' },
+    { k: 'kanjiCount',   type: 'range', label: 'Kanji count',  min: 1, max: 6, step: 1 },
+    { k: 'kanjiScale',   type: 'range', label: 'Kanji scale',  min: 0.4, max: 2.0, step: 0.01 },
+    { k: 'kanjiColor',   type: 'color', label: 'Kanji color' },
+    { k: 'bitmaps',      type: 'check', label: '80s bitmaps' },
+    { k: 'bitmapCount',  type: 'range', label: 'Bitmap count', min: 1, max: 10, step: 1 },
+    { k: 'bitmapScale',  type: 'range', label: 'Bitmap scale', min: 0.3, max: 1.8, step: 0.01 },
+    { k: 'bitmapColor',  type: 'color', label: 'Bitmap tint' },
+    { k: 'rays',         type: 'check', label: 'Sun rays' },
+    { k: 'rayCount',     type: 'range', label: 'Ray count',    min: 6, max: 36, step: 1 },
+    { k: 'rayLength',    type: 'range', label: 'Ray length',   min: 0.2, max: 1.2, step: 0.01 },
+    { k: 'rayWidth',     type: 'range', label: 'Ray width',    min: 0.1, max: 1, step: 0.01 },
+  ],
+  sound: [
+    { k: 'masterVol',  type: 'range', label: 'Master vol', min: 0, max: 1, step: 0.01 },
+    { k: 'droneFreq',  type: 'range', label: 'Drone Hz',   min: 30, max: 220, step: 1 },
+    { k: 'droneDetune',type: 'range', label: 'Detune',     min: 0, max: 80, step: 1 },
+    { k: 'padShimmer', type: 'range', label: 'Pad shimmer',min: 0, max: 1, step: 0.01 },
+    { k: 'crackle',    type: 'range', label: 'Vinyl crackle', min: 0, max: 1, step: 0.01 },
+    { k: 'rain',       type: 'range', label: 'Rain',       min: 0, max: 1, step: 0.01 },
+    { k: 'lpfCutoff',  type: 'range', label: 'LPF cutoff', min: 0.05, max: 1, step: 0.01 },
+    { k: 'lfoRate',    type: 'range', label: 'LFO rate',   min: 0.02, max: 2, step: 0.01 },
+    { k: 'reverb',     type: 'range', label: 'Reverb',     min: 0, max: 1, step: 0.01 },
+  ],
+  android: [
+    { k: 'matrix',      type: 'range',  label: 'Code rain',    min: 0, max: 1, step: 0.01 },
+    { k: 'matrixSpeed', type: 'range',  label: 'Rain speed',   min: 0.1, max: 2, step: 0.01 },
+    { k: 'matrixColor', type: 'color',  label: 'Rain color' },
+    { k: 'matrixChars', type: 'select', label: 'Rain charset', options: ['kana','binary','hex','wetware','symbols'] },
+    { k: 'ascii',       type: 'check',  label: 'ASCII mode' },
+    { k: 'asciiSize',   type: 'range',  label: 'ASCII cell',   min: 4, max: 24, step: 1 },
+    { k: 'reticle',     type: 'check',  label: 'Sun reticle' },
+    { k: 'polygons',    type: 'check',  label: 'Poly orbit' },
+    { k: 'polyCount',   type: 'range',  label: 'Poly count',   min: 3, max: 24, step: 1 },
+    { k: 'polySides',   type: 'range',  label: 'Poly sides',   min: 3, max: 12, step: 1 },
+    { k: 'telemetry',   type: 'check',  label: 'Telemetry' },
+    { k: 'rollingBand', type: 'range',  label: 'Rolling band', min: 0, max: 1, step: 0.01 },
+    { k: 'scanSweep',   type: 'check',  label: 'Scan sweep' },
+    { k: 'anaglyph',    type: 'range',  label: 'Anaglyph 3D',  min: 0, max: 1, step: 0.01 },
+  ],
+  static: [
+    { k: 'tvStatic',    type: 'range', label: 'TV static',    min: 0, max: 1, step: 0.01 },
+    { k: 'rgbGhost',    type: 'range', label: 'RGB ghost',    min: 0, max: 1, step: 0.01 },
+    { k: 'waveWarp',    type: 'range', label: 'Wave warp',    min: 0, max: 1, step: 0.01 },
+    { k: 'hueShift',    type: 'range', label: 'Hue shift',    min: 0, max: 1, step: 0.01 },
+    { k: 'posterize',   type: 'range', label: 'Posterize',    min: 0, max: 1, step: 0.01 },
+    { k: 'badBlocks',   type: 'range', label: 'Bad blocks',   min: 0, max: 1, step: 0.01 },
+    { k: 'tapeBands',   type: 'range', label: 'Tape bands',   min: 0, max: 1, step: 0.01 },
+    { k: 'invertPulse', type: 'range', label: 'Invert pulse', min: 0, max: 1, step: 0.01 },
+    { k: 'recBadge',    type: 'check', label: 'REC badge' },
+    { k: 'vhsCounter',  type: 'check', label: 'VHS counter' },
+    { k: 'hexMarquee',  type: 'check', label: 'Hex marquee' },
+    { k: 'animate',     type: 'check', label: 'Animate' },
+  ],
+};
+
+//=========================================================================
+// BUILD UI
+//=========================================================================
+function buildUI() {
+  for (const [section, defs] of Object.entries(CONTROLS)) {
+    const hostId = section === 'sound' ? 'sec-sound-dials' : 'sec-' + section;
+    const host = document.getElementById(hostId);
+    if (!host) continue;
+    for (const def of defs) {
+      host.appendChild(buildControl(section, def));
+    }
+  }
+  // Preset dropdown
+  const psel = document.getElementById('preset');
+  for (const name of Object.keys(PRESETS)) {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    psel.appendChild(opt);
+  }
+  psel.addEventListener('change', () => { applyPreset(psel.value); requestRender(); });
+}
+
+function buildControl(section, def) {
+  const v = state[section][def.k];
+  if (def.type === 'check') {
+    const row = document.createElement('div');
+    row.className = 'checkrow';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!v;
+    cb.id = `c-${section}-${def.k}`;
+    cb.addEventListener('input', () => { state[section][def.k] = cb.checked; requestRender(); });
+    const lbl = document.createElement('label');
+    lbl.htmlFor = cb.id;
+    lbl.textContent = def.label;
+    row.append(cb, lbl);
+    return row;
+  }
+  if (def.type === 'select') {
+    const row = document.createElement('div');
+    row.className = 'ctl-wide';
+    const lbl = document.createElement('label');
+    lbl.textContent = def.label;
+    const sel = document.createElement('select');
+    for (const opt of def.options) {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      sel.appendChild(o);
+    }
+    sel.value = v;
+    sel.id = `c-${section}-${def.k}`;
+    sel.addEventListener('change', () => {
+      state[section][def.k] = sel.value;
+      if (section === 'sound') Sound.update(); else requestRender();
+    });
+    row.append(lbl, sel);
+    return row;
+  }
+  if (def.type === 'color') {
+    const row = document.createElement('div');
+    row.className = 'ctl-wide';
+    const lbl = document.createElement('label');
+    lbl.textContent = def.label;
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = v;
+    inp.id = `c-${section}-${def.k}`;
+    inp.addEventListener('input', () => { state[section][def.k] = inp.value; requestRender(); });
+    row.append(lbl, inp);
+    return row;
+  }
+  // range
+  const row = document.createElement('div');
+  row.className = 'ctl';
+  const lbl = document.createElement('label');
+  lbl.textContent = def.label;
+  const inp = document.createElement('input');
+  inp.type = 'range';
+  inp.min = def.min; inp.max = def.max; inp.step = def.step;
+  inp.value = v;
+  inp.id = `c-${section}-${def.k}`;
+  const val = document.createElement('div');
+  val.className = 'val';
+  val.textContent = formatVal(v, def.step);
+  inp.addEventListener('input', () => {
+    const n = def.step >= 1 ? parseInt(inp.value, 10) : parseFloat(inp.value);
+    state[section][def.k] = n;
+    val.textContent = formatVal(n, def.step);
+    if (section === 'sound') Sound.update(); else requestRender();
+  });
+  row.append(lbl, inp, val);
+  return row;
+}
+
+function formatVal(v, step) {
+  if (typeof v !== 'number') return String(v);
+  return step >= 1 ? String(v) : v.toFixed(2);
+}
+
+function syncUIFromState() {
+  for (const [section, defs] of Object.entries(CONTROLS)) {
+    for (const def of defs) {
+      const id = `c-${section}-${def.k}`;
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const v = state[section][def.k];
+      if (def.type === 'check') el.checked = !!v;
+      else el.value = v;
+      // update value text for ranges
+      if (def.type === 'range') {
+        const sibling = el.parentElement.querySelector('.val');
+        if (sibling) sibling.textContent = formatVal(v, def.step);
+      }
+    }
+  }
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  for (const [section, vals] of Object.entries(p)) {
+    Object.assign(state[section], vals);
+  }
+  syncUIFromState();
+}
+
+//=========================================================================
+// RANDOM (seeded for mountains, free for everything else on randomize)
+//=========================================================================
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function rand(min, max) { return min + Math.random() * (max - min); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function randomize() {
+  // Pick a random preset as the base palette
+  const presetNames = Object.keys(PRESETS);
+  applyPreset(pick(presetNames));
+  // Then jitter
+  state.sky.starDensity = rand(0.2, 0.9);
+  state.sky.starBrightness = rand(0.5, 1);
+  state.sun.x = rand(0.25, 0.75);
+  state.sun.y = rand(0.45, 0.7);
+  state.sun.radius = rand(0.14, 0.3);
+  state.sun.bars = Math.random() > 0.15;
+  state.sun.barCount = Math.floor(rand(8, 22));
+  state.sun.glow = rand(0.3, 1);
+  state.mountains.layers = Math.floor(rand(2, 5));
+  state.mountains.height = rand(0.3, 0.65);
+  state.mountains.jaggedness = rand(0.25, 0.85);
+  state.mountains.snow = Math.random() > 0.4;
+  state.mountains.wireframe = Math.random() > 0.7;
+  state.mountains.seed = Math.floor(Math.random() * 1e9);
+  state.grid.density = Math.floor(rand(8, 24));
+  state.grid.glow = rand(0.3, 1);
+  state.grid.perspective = rand(0.5, 1);
+  state.palms.count = Math.floor(rand(0, 12));
+  state.palms.side = pick(['left','right','both']);
+  state.palms.scale = rand(0.35, 1.2);
+  state.palms.spread = rand(0.15, 0.9);
+  state.palms.vary = rand(0.1, 0.7);
+  state.palms.depth = rand(0, 0.6);
+  state.fx.chromatic = rand(0.1, 0.7);
+  state.fx.scanlines = rand(0.15, 0.7);
+  state.fx.grain = rand(0.05, 0.45);
+  state.fx.glitch = Math.random() > 0.6 ? rand(0.1, 0.45) : 0;
+  state.fx.vignette = rand(0.25, 0.7);
+  // Roll dice on objects too
+  state.objects.planet = Math.random() > 0.55;
+  state.objects.planetX = rand(0.1, 0.9);
+  state.objects.planetY = rand(0.05, 0.4);
+  state.objects.planetScale = rand(0.3, 0.9);
+  state.objects.planetColor = pick(['#ff6ec7','#9b5cff','#00f0ff','#ff8500','#39ff14','#ffd60a']);
+  state.objects.planetRings = Math.random() > 0.5;
+  state.objects.statue = Math.random() > 0.5;
+  state.objects.statueX = rand(0.15, 0.85);
+  state.objects.statueScale = rand(0.55, 1.3);
+  state.objects.statueColor = pick(['#ffffff','#ffafcc','#fff5b8','#bde0fe','#ff2d95','#a06bff']);
+  state.objects.kanji = Math.random() > 0.6;
+  state.objects.kanjiCount = Math.floor(rand(1, 5));
+  state.objects.kanjiScale = rand(0.6, 1.6);
+  state.objects.kanjiColor = pick(['#ff2d95','#00f0ff','#fff5b8','#39ff14','#ffffff']);
+  state.objects.bitmaps = Math.random() > 0.25;
+  state.objects.bitmapCount = Math.floor(rand(2, 8));
+  state.objects.bitmapScale = rand(0.4, 1.4);
+  state.objects.bitmapColor = pick(['#ffffff','#ff2d95','#00f0ff','#ffd60a','#39ff14','#ff8500','#a06bff']);
+  state.objects.rays = Math.random() > 0.5;
+  state.objects.rayCount = Math.floor(rand(8, 30));
+  state.objects.rayLength = rand(0.3, 1.0);
+  state.objects.rayWidth = rand(0.15, 0.7);
+  // Static / overlay roll
+  state.static.tvStatic    = Math.random() > 0.7 ? rand(0.05, 0.35) : 0;
+  state.static.rgbGhost    = Math.random() > 0.7 ? rand(0.1, 0.55) : 0;
+  state.static.waveWarp    = Math.random() > 0.75 ? rand(0.1, 0.45) : 0;
+  state.static.hueShift    = Math.random() > 0.85 ? rand(0.05, 0.4) : 0;
+  state.static.posterize   = Math.random() > 0.8 ? rand(0.2, 0.7) : 0;
+  state.static.badBlocks   = Math.random() > 0.8 ? rand(0.1, 0.4) : 0;
+  state.static.tapeBands   = Math.random() > 0.6 ? rand(0.1, 0.5) : 0;
+  state.static.invertPulse = Math.random() > 0.9 ? rand(0.1, 0.4) : 0;
+  state.static.recBadge   = Math.random() > 0.7;
+  state.static.vhsCounter = Math.random() > 0.6;
+  state.static.hexMarquee = Math.random() > 0.65;
+  // ANDROID / HUD roll
+  state.android.matrix      = Math.random() > 0.55 ? rand(0.2, 0.7) : 0;
+  state.android.matrixSpeed = rand(0.4, 1.4);
+  state.android.matrixColor = pick(['#00ff66','#39ff14','#00f0ff','#ff2d95','#ffd60a','#ff8500','#a06bff']);
+  state.android.matrixChars = pick(['kana','binary','hex','wetware','symbols']);
+  state.android.reticle     = Math.random() > 0.5;
+  state.android.polygons    = Math.random() > 0.45;
+  state.android.polyCount   = Math.floor(rand(4, 16));
+  state.android.polySides   = Math.floor(rand(3, 9));
+  state.android.telemetry   = Math.random() > 0.55;
+  state.android.rollingBand = Math.random() > 0.7 ? rand(0.2, 0.6) : 0;
+  state.android.scanSweep   = Math.random() > 0.65;
+  state.android.anaglyph    = Math.random() > 0.8 ? rand(0.15, 0.5) : 0;
+  state.android.ascii       = Math.random() > 0.85;
+  state.android.asciiSize   = Math.floor(rand(8, 16));
+  syncUIFromState();
+  requestRender();
+}
+
+//=========================================================================
+// RENDER PIPELINE
+//=========================================================================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const sceneCanvas = document.createElement('canvas');
+sceneCanvas.width = W; sceneCanvas.height = H;
+const sctx = sceneCanvas.getContext('2d');
+
+let pendingRender = false;
+function requestRender() {
+  if (pendingRender) return;
+  pendingRender = true;
+  requestAnimationFrame(() => { pendingRender = false; render(); });
+}
+
+// === Continuous animation loop ===
+// Drives Matrix rain, sweep, polygons, rolling band, REC blink, marquee, etc.
+let animLoopRunning = false;
+function needsAnimation() {
+  if (state.static.animate) return true;
+  const a = state.android;
+  if (a.matrix > 0.01) return true;       // rain requires motion
+  if (a.polygons) return true;             // orbits
+  if (a.scanSweep) return true;            // sweeps
+  if (a.rollingBand > 0.01) return true;   // rolls
+  return false;
+}
+function startAnimLoop() {
+  if (animLoopRunning) return;
+  animLoopRunning = true;
+  const tick = () => {
+    if (!needsAnimation()) { animLoopRunning = false; return; }
+    render();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function render() {
+  // Reset scene
+  sctx.clearRect(0, 0, W, H);
+  drawSky(sctx);
+  drawStars(sctx);
+  if (state.objects.planet) drawPlanet(sctx);
+  drawSun(sctx);
+  drawMountains(sctx);
+  drawGrid(sctx);
+  drawPalms(sctx);
+  if (state.objects.rays) drawSunRays(sctx);
+  if (state.objects.statue) drawStatue(sctx);
+  if (state.objects.bitmaps) drawBitmaps(sctx);
+  if (state.objects.kanji) drawKanji(sctx);
+
+  // Composite to main with chromatic aberration
+  applyChromatic(sceneCanvas, ctx);
+
+  // Heavy static / overlay chain
+  applyHueShift(ctx);
+  applyPosterize(ctx);
+  applyWaveWarp(ctx);
+  applyRGBGhost(ctx);
+  applyAnaglyph(ctx);
+  applyRollingBand(ctx);
+  applyTapeBands(ctx);
+  applyInvertPulse(ctx);
+  applyGlitch(ctx);
+  applyBadBlocks(ctx);
+  // ANDROID HUD layer
+  applyPolygonOrbit(ctx);
+  applyReticle(ctx);
+  applyMatrixRain(ctx);
+  applyScanSweep(ctx);
+  applyTelemetryHUD(ctx);
+  applyAsciiMode(ctx);
+  // Final film grain / CRT
+  applyTVStatic(ctx);
+  applyScanlines(ctx);
+  applyTextOverlay(ctx);
+  applyGrain(ctx);
+  applyVignette(ctx);
+}
+
+//-------------------------------------------------------------------------
+// SKY
+//-------------------------------------------------------------------------
+function horizonY() { return state.sun.y * H; }
+
+function drawSky(c) {
+  const hY = horizonY();
+  // Sky gradient above horizon
+  const g = c.createLinearGradient(0, 0, 0, hY);
+  g.addColorStop(0, state.sky.topColor);
+  g.addColorStop(1, state.sky.horizonColor);
+  c.fillStyle = g;
+  c.fillRect(0, 0, W, hY);
+  // Floor base (so palms/effects under horizon have a base)
+  c.fillStyle = '#02000a';
+  c.fillRect(0, hY, W, H - hY);
+}
+
+function drawStars(c) {
+  const hY = horizonY();
+  const density = state.sky.starDensity;
+  const bright = state.sky.starBrightness;
+  const count = Math.floor(density * 360);
+  // Use a stable seeded RNG keyed off seed so stars don't reshuffle on slider tweak
+  const r = mulberry32(state.mountains.seed ^ 0xBEEF);
+  for (let i = 0; i < count; i++) {
+    const x = r() * W;
+    const y = r() * hY * 0.92;
+    const sz = r() * 1.4 + 0.2;
+    const a = (0.4 + r() * 0.6) * bright;
+    c.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    c.fillRect(x, y, sz, sz);
+  }
+}
+
+//-------------------------------------------------------------------------
+// SUN
+//-------------------------------------------------------------------------
+function drawSun(c) {
+  const cx = state.sun.x * W;
+  const cy = state.sun.y * H;
+  const rad = state.sun.radius * H;
+
+  // Glow halo
+  if (state.sun.glow > 0) {
+    const halo = c.createRadialGradient(cx, cy, rad * 0.4, cx, cy, rad * 2.2);
+    halo.addColorStop(0, hexA(state.sun.colorBottom, state.sun.glow * 0.45));
+    halo.addColorStop(1, hexA(state.sun.colorBottom, 0));
+    c.fillStyle = halo;
+    c.fillRect(0, 0, W, H);
+  }
+
+  // Sun disc with vertical gradient
+  const g = c.createLinearGradient(cx, cy - rad, cx, cy + rad);
+  g.addColorStop(0, state.sun.colorTop);
+  g.addColorStop(1, state.sun.colorBottom);
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(cx, cy, rad, 0, Math.PI * 2);
+  c.fill();
+
+  // Horizontal bars (cut-outs across the lower half)
+  if (state.sun.bars) {
+    c.save();
+    c.beginPath();
+    c.arc(cx, cy, rad, 0, Math.PI * 2);
+    c.clip();
+    const barCount = state.sun.barCount;
+    c.globalCompositeOperation = 'destination-out';
+    // Start bars from middle and go down
+    const startY = cy - rad * 0.05;
+    const endY = cy + rad;
+    const span = endY - startY;
+    for (let i = 0; i < barCount; i++) {
+      const t = i / barCount;
+      const barH = Math.max(1.5, (1 - t) * span * 0.07);
+      const gap = span / barCount;
+      const y = startY + i * gap + t * 6;
+      c.fillStyle = '#000';
+      c.fillRect(cx - rad, y, rad * 2, barH);
+    }
+    c.restore();
+  }
+}
+
+//-------------------------------------------------------------------------
+// MOUNTAINS
+//-------------------------------------------------------------------------
+function drawMountains(c) {
+  const hY = horizonY();
+  const layers = state.mountains.layers;
+  const baseHeight = state.mountains.height * H * 0.55;
+  const jag = state.mountains.jaggedness;
+
+  for (let l = 0; l < layers; l++) {
+    const t = layers === 1 ? 0 : l / (layers - 1);
+    const layerHeight = baseHeight * (0.5 + t * 0.55);
+    const yOffset = hY - (layers - 1 - l) * 18;
+    const color = mixColor(state.mountains.colorFar, state.mountains.colorNear, t);
+    const seed = state.mountains.seed + l * 7919;
+    drawMountainLayer(c, yOffset, layerHeight, jag, color, seed, l, layers);
+  }
+}
+
+function drawMountainLayer(c, yBase, height, jag, color, seed, layerIdx, layerCount) {
+  const rng = mulberry32(seed);
+  // Build heightmap
+  const samples = 220;
+  const heights = new Array(samples);
+  // Layered noise
+  for (let i = 0; i < samples; i++) {
+    let h = 0;
+    let amp = 1, freq = 1;
+    for (let o = 0; o < 4; o++) {
+      const x = i / samples * freq * 6;
+      h += amp * (Math.sin(x * 2 + rng() * 6.28) + Math.cos(x * 1.3 + rng() * 6.28)) * 0.5;
+      amp *= 0.55; freq *= 2;
+    }
+    heights[i] = h;
+  }
+  // Normalize
+  let mn = Infinity, mx = -Infinity;
+  for (const h of heights) { if (h < mn) mn = h; if (h > mx) mx = h; }
+  for (let i = 0; i < samples; i++) {
+    const t = (heights[i] - mn) / (mx - mn + 1e-9);
+    heights[i] = t * height * (0.4 + jag * 0.9);
+  }
+
+  // Draw filled mountain polygon
+  c.beginPath();
+  c.moveTo(0, yBase);
+  for (let i = 0; i < samples; i++) {
+    const x = (i / (samples - 1)) * W;
+    const y = yBase - heights[i];
+    c.lineTo(x, y);
+  }
+  c.lineTo(W, yBase);
+  c.closePath();
+  c.fillStyle = color;
+  c.fill();
+
+  // Snow caps on the top layer(s)
+  if (state.mountains.snow && layerIdx >= layerCount - 2) {
+    const snowThreshold = (Math.max(...heights)) * 0.7;
+    c.fillStyle = 'rgba(255, 230, 255, 0.85)';
+    for (let i = 1; i < samples - 1; i++) {
+      if (heights[i] > snowThreshold) {
+        const x = (i / (samples - 1)) * W;
+        const y = yBase - heights[i];
+        const w = W / samples * 1.6;
+        c.beginPath();
+        c.moveTo(x - w, y + 6);
+        c.lineTo(x, y);
+        c.lineTo(x + w, y + 6);
+        c.closePath();
+        c.fill();
+      }
+    }
+  }
+
+  // Wireframe topo overlay
+  if (state.mountains.wireframe) {
+    c.save();
+    c.beginPath();
+    c.moveTo(0, yBase);
+    for (let i = 0; i < samples; i++) {
+      const x = (i / (samples - 1)) * W;
+      const y = yBase - heights[i];
+      c.lineTo(x, y);
+    }
+    c.lineTo(W, yBase);
+    c.closePath();
+    c.clip();
+    c.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+    c.lineWidth = 1;
+    const lines = 14;
+    for (let i = 1; i <= lines; i++) {
+      const y = yBase - (i / lines) * height;
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(W, y);
+      c.stroke();
+    }
+    c.restore();
+  }
+}
+
+//-------------------------------------------------------------------------
+// GRID FLOOR
+//-------------------------------------------------------------------------
+function drawGrid(c) {
+  const hY = horizonY();
+  const floorH = H - hY;
+  if (floorH <= 0) return;
+  const persp = state.grid.perspective;
+  const vpX = W / 2;
+  const vpY = hY;
+
+  c.save();
+  c.strokeStyle = state.grid.color;
+  c.lineWidth = 1.4;
+  if (state.grid.glow > 0) {
+    c.shadowColor = state.grid.color;
+    c.shadowBlur = 12 * state.grid.glow;
+  }
+
+  // Vertical perspective lines (converge to vanishing point)
+  const verts = state.grid.density;
+  for (let i = -verts; i <= verts; i++) {
+    const t = i / verts;
+    const xBottom = vpX + t * W * 0.85 / Math.max(0.3, persp);
+    c.beginPath();
+    c.moveTo(vpX + t * 30 * persp, vpY);
+    c.lineTo(xBottom, H);
+    c.stroke();
+  }
+
+  // Horizontal lines, spacing increases as we go down (closer to viewer)
+  const horz = state.grid.density;
+  for (let i = 1; i <= horz; i++) {
+    const t = i / horz;
+    // Non-linear (closer rows further apart): t^2.4
+    const y = vpY + Math.pow(t, 2.4) * floorH;
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(W, y);
+    c.stroke();
+  }
+
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// PALMS
+//-------------------------------------------------------------------------
+function drawPalms(c) {
+  const p = state.palms;
+  if (p.count <= 0) return;
+  const side = p.side;
+  const scale = p.scale;
+  const spread = p.spread;          // 0.05..1 -- fraction of canvas width from edge palms may occupy
+  const vary = p.vary;              // 0..1 -- scale variation between palms
+  const depth = p.depth;            // 0..1 -- vertical position variation (depth feel)
+  const baseY = horizonY() + 12;
+  const r = mulberry32(state.mountains.seed ^ 0xC0FFEE);
+
+  const positions = [];
+  for (let i = 0; i < p.count; i++) {
+    const isLeft = side === 'left' ? true : side === 'right' ? false : (r() < 0.5);
+    const t = r(); // 0..1 within band
+    let xT;
+    if (isLeft) xT = t * spread;
+    else        xT = 1 - t * spread;
+    const sizeMul = 1 + (r() * 2 - 1) * vary;  // (1-vary)..(1+vary)
+    const s = (0.7 + r() * 0.5) * scale * sizeMul;
+    // Depth offset — smaller palms get pushed up (further away)
+    const dY = (r() * 2 - 1) * depth * 90;
+    positions.push({ x: xT * W, y: baseY + dY, s, isLeft });
+  }
+  // Draw smaller (further) palms first so larger ones overlap them
+  positions.sort((a, b) => a.s - b.s);
+  for (const pos of positions) {
+    drawPalm(c, pos.x, pos.y, pos.s, pos.isLeft);
+  }
+}
+
+function drawPalm(c, x, baseY, scale, leansLeft) {
+  const trunkH = 230 * scale;
+  const lean = leansLeft ? -1 : 1;
+  c.save();
+  c.fillStyle = '#0a0014';
+  c.strokeStyle = '#0a0014';
+  c.lineWidth = 6 * scale;
+  c.lineCap = 'round';
+
+  // Trunk (curved)
+  c.beginPath();
+  c.moveTo(x, baseY);
+  c.quadraticCurveTo(x + lean * 14 * scale, baseY - trunkH * 0.5, x + lean * 28 * scale, baseY - trunkH);
+  c.stroke();
+
+  // Crown center
+  const cx = x + lean * 28 * scale;
+  const cy = baseY - trunkH;
+
+  // Fronds
+  c.strokeStyle = '#0a0014';
+  c.lineWidth = 3 * scale;
+  const fronds = 9;
+  for (let i = 0; i < fronds; i++) {
+    const a = (i / fronds) * Math.PI * 2 + 0.15;
+    const len = (70 + Math.sin(i * 1.3) * 18) * scale;
+    const ex = cx + Math.cos(a) * len;
+    const ey = cy + Math.sin(a) * len * 0.7 - 8 * scale;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.quadraticCurveTo(cx + Math.cos(a) * len * 0.5, cy + Math.sin(a) * len * 0.5 - 22 * scale, ex, ey);
+    c.stroke();
+    // little leaflets
+    c.lineWidth = 1.5 * scale;
+    for (let k = 0; k < 5; k++) {
+      const tt = (k + 1) / 6;
+      const px = cx + (ex - cx) * tt;
+      const py = cy + (ey - cy) * tt - 18 * scale * (1 - tt);
+      c.beginPath();
+      c.moveTo(px, py);
+      c.lineTo(px + Math.cos(a + 0.5) * 8 * scale, py + Math.sin(a + 0.5) * 8 * scale - 3);
+      c.moveTo(px, py);
+      c.lineTo(px + Math.cos(a - 0.5) * 8 * scale, py + Math.sin(a - 0.5) * 8 * scale - 3);
+      c.stroke();
+    }
+    c.lineWidth = 3 * scale;
+  }
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// PLANET
+//-------------------------------------------------------------------------
+function drawPlanet(c) {
+  const o = state.objects;
+  const cx = o.planetX * W;
+  const cy = o.planetY * H;
+  const rad = o.planetScale * H * 0.16;
+
+  // Soft glow
+  const halo = c.createRadialGradient(cx, cy, rad * 0.3, cx, cy, rad * 2);
+  halo.addColorStop(0, hexA(o.planetColor, 0.5));
+  halo.addColorStop(1, hexA(o.planetColor, 0));
+  c.fillStyle = halo;
+  c.fillRect(cx - rad * 2.4, cy - rad * 2.4, rad * 4.8, rad * 4.8);
+
+  // Disc with gradient shading
+  const g = c.createRadialGradient(cx - rad * 0.3, cy - rad * 0.3, rad * 0.2, cx, cy, rad);
+  g.addColorStop(0, lighten(o.planetColor, 0.3));
+  g.addColorStop(0.6, o.planetColor);
+  g.addColorStop(1, darken(o.planetColor, 0.5));
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(cx, cy, rad, 0, Math.PI * 2);
+  c.fill();
+
+  // Surface bands
+  c.save();
+  c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI * 2); c.clip();
+  c.globalAlpha = 0.18;
+  c.strokeStyle = darken(o.planetColor, 0.5);
+  c.lineWidth = 2;
+  for (let i = -4; i <= 4; i++) {
+    const y = cy + i * rad * 0.18;
+    c.beginPath();
+    c.moveTo(cx - rad, y + Math.sin(i) * 4);
+    c.bezierCurveTo(cx - rad/2, y - 4, cx + rad/2, y + 4, cx + rad, y);
+    c.stroke();
+  }
+  c.restore();
+
+  // Rings
+  if (o.planetRings) {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate(-0.35);
+    c.scale(1, 0.22);
+    c.strokeStyle = hexA(o.planetColor, 0.9);
+    c.lineWidth = 4;
+    c.beginPath(); c.arc(0, 0, rad * 1.55, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = hexA(lighten(o.planetColor, 0.3), 0.7);
+    c.lineWidth = 2;
+    c.beginPath(); c.arc(0, 0, rad * 1.78, 0, Math.PI * 2); c.stroke();
+    c.restore();
+  }
+}
+
+//-------------------------------------------------------------------------
+// STATUE OF DAVID (low-res 1-bit dithered bitmap from downloaded photo)
+//-------------------------------------------------------------------------
+const davidImg = new Image();
+let davidProcessedCache = { canvas: null, color: null };
+
+davidImg.addEventListener('load', () => requestRender());
+davidImg.addEventListener('error', () => console.warn('david.jpg failed to load'));
+davidImg.src = 'data:image/jpeg;base64,/9j/4QBuRXhpZgAATU0AKgAAAAgABQEOAAIAAAALAAAASgEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAAAAAAAgICAgICAgICAgAAAAAABIAAAAAQAAAEgAAAAB/9sAQwAEAwMEAwMEBAMEBQQEBQYKBwYGBgYNCQoICg8NEBAPDQ8OERMYFBESFxIODxUcFRcZGRsbGxAUHR8dGh8YGhsa/9sAQwEEBQUGBQYMBwcMGhEPERoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoa/8AAEQgBTQD6AwEiAAIRAQMRAf/EAB0AAAAHAQEBAAAAAAAAAAAAAAECAwQFBgcACAn/xABWEAABAgQDBAYFCAYGBgcJAAABAgMABAUREiExBhNBUQciYXGBkRQyobHBFSMzQlJicrIkgpKi0eEWQ1NzwvAXJTRjhJMIRFWDo9LxNkVUZHR1s8PT/8QAGQEAAwEBAQAAAAAAAAAAAAAAAAECAwQF/8QALREAAgIBAwQABAUFAAAAAAAAAAECESEDEjETQVFhInGh8BRSkcHRBCNCgbH/2gAMAwEAAhEDEQA/AIuT2dQhwSjKQXFWVMue0J+JherLbaSJeVADaBYW5cT3n3d8WNxlNLkFFfXmHuu4eJvw8T7IqcykrWonrrUb+MefwURLUkZt7ATZsZrUOXKJ9rCyAG0gISMNhwEcxLhhsITmo5qMH3Z4dU845pSvg2ikhw2kLF0G9uEc4w2+2pt9sOIPA/5yMMt9uli53a1GybC4UeUOJOe9KddZLS0rbF1LA6p7O+M93krb3EZOlok33Hd84/cWbDmZbHHPj3w5dUUjCn1laW4QubC5JyGcN0ArKlq1OgigXs5KAhNuUdkdYPzEF1/hEryAUjkYLnxgfjA87QcDSEzcXvpCTpISQMierCxzGUN3VZqt9VNgO0wNgg8qnqrXYdc4R3CAmM1JRxAue8mw+MOEN4EJQPqi0NgQt5RvcYjbuGXvJhdiuRQRx1Gmt4H/ADeCKOvIJJhiHLAsyjtF4bEgzbv4wP3YdjJtCfuiGSReZd/vVflhcB5HQUbaAQGcCkeOfOBsDBYAAQYAG8cBBkjIwJjQGHEO+Dt5hWXaIC0CjJY8vAwxDadRgcZeI6v0bncdPj5x0ueoULzU2cJ7uHsh08zv2HGjqtOXfw9sRjUwEhp1QVZxOBYCSSFDTTxhFLKH3ujkKwqF8gcj2f5+MIKfVhJwhtP2nDb2Q2Q6uYJ9EQ7Nq0uOq2PHT3wJguMkm4wl9pbTo6qsu7tiGJnmyUblxWHK40MTUuHQygTJQXQLKwEke2Fc+2Hl8FR9oe1p4vPr5JJ7r/y0iIl5a6y6pOQyT2mJZ9gvLwJzuYcNyYNgPVRkO3tjqn4OOPkjUSp1VmTBHGSBE4ZYAQzflybgRi44NEyvrSbqdser1UDt5w+lZb0VmyvpFdZffyh61JhS8Vuq3oOZ4QLyd2lSlfVHtiEu7Kb7Ec91lBsd6oNhGg4RzaCLrPrKzg3PhACEyDBCLwrprAWHDMwhoRw2EDa94Pht2QA5QIEJqGVzDdtG8dbB4nGe7hDh71CBqco6WSCp1Y0ySIQ0HWQ2ha1W6gKjEch9tpeBxxKVJQLgm2ucSE1LelyzrJcW1vBbGi1xnfK/dDD5Lm0AhuoJWOTsv/A/CHVBYuhxCvVUk9xgqyCHD2AQ2NNns7okHvFSPemAalKi24gCTl22i4kuKRMA5XzNrcoQEuR1+60Mms5hZ5uuRI4eubDUxHMWxXA1W4fbEjXodAQa1hHcrwYaQwQWxPdCiU5QA43sIOAQnthoALc4AjPLj/kQa2R4RxuM+RvAIUBxAEHXOI1VMmDNPrZm0MSzisQSlvEsE65k2GffEk2OqR9kwEw+1KsqemF7ttNrqIJ10hjGjdKlkKClpVMrGeJ9WO3hoPKHliQAdBoIRE2HE4mG1KT9pXVEJlTjgspaiOKWxYecKwoWU620oJW4Ao5WvnCn6p84ZhnDchKUp4i1yfGFw8pIAKQq2V7awWu6B+izS8qSFL4qNk5eZh+3JBCbARNS9IwtpUkbywFxxT3QquUsklOcdnLOVFccYFjlpCCpUnK1ic/CJ4ygUo39UZnugBKWSXFCxVEVZSIFUuEpwgaRDz6cTiWRonNXf/6e+LS+0lpK1r9VIuYgAypRU4v1lkkxLWCkyMUixtaEinPxiRWxzhutrWM6opDQjK3KAFs4WKLwTCRwiRhLQGHWD2jrQdgQ2cHWHJIue/hCkujCym/1usYIoFQVzUoJEPCkJyGgFoXcr0NnZlDLqW3MWIpxdUXAEcH2T9e3eCIQeBVMO5kdZKLjI2GZhUNngtXjnACSFA41wcQe5UHThOikknQXENy1zse9Agku0kvsrKUhYubgd8Kx9h6B1k98RcoLhHbjPtiXCcx2RFyYshrL6h98DwCHaU3gwGQgQLaQYDLnAIKkcIUwxyNTHaCGgQQJyJMDa0GAtHW8jCQM5rUgZ3FvKBmGfSJZ1rI405d+o9sJpOBV+AIvDoZecNexkNLEOFhxWeJJTY6AjP8AjEgE3hkWyy7Mtp0bWHEd2vuJiQAuL+IgQNieGwyEFwqhbD3R27h57AmbeiWwDLIiE3ZdK/uL584q+z+3qQsSW06DLvpOH0kIsCfvp4HtEXYoS62lbakuNrF0rScQUOYMdsZKawcrVckIqVUFlBSBjIF+BhN9lNylPqjIRLONKTcDTlDVbIsYKyFlWrCMKEMp9Z03I7B/P3RFOMBItwAixTcspc0666lSQCEt5ZFIGvmTDJ2V1I9mcQ0NMgVsQ2WxrlEy5LnPK8NVsmJaLsh1MEXtCKm4l1s6i2cIrYGfGI2lWRJb4cIIU214RJKZ1yhu4wSLc8ojbQ0xi00S6gfZGIw5ICRdZCUjUk2tDqVlC48oNoUtZIQhKE3KlE2AA4k6WjZaJ0fSuylGFQqJpr+1zrOJqRqziEy8mgEFbihnfAkKJcJtlZNrglw03IHKjEaVs7WKxLtzlKo1TqEs6XFoelZNx1CiFWNlJBBscjFr/wBE22SGGn36IZSXcAJdmZxhpLQOm8uu6e6187axfv8AT+urUesyNAeo1I2ipbiilU26kMzMsh2y3WesEqu384Bc+sBnYmM82o/6TNSqIUzQChtlwKL7UzLCZRiNyN2VBQUL5gWyBw2yvGrhpRVtslOUuEQdc2fndn3G2qmZPE7fCZaeamBYG2eAkpvwuBextobRbCLOpyvZJh70fdJDCpOq7MjZ3Z1iXrnWnJhDiqeyHAgYVnHdLASU4koQMIUonIqzKJRyWmnmXihTjPUUULC0qIOoUkkEHUEZG8YNJ8FK1yFOSVHkDEbLJshki30ftvEq4nC06TlZCvcYj2E/R8Buh74ljXAsBreDAZQZKDBgmw09kIAgFjpmI6xMK4dbR2CAYnbKAIt2wrgjgi57YaQDcp4X4Q6RmkHW4EJlFuGhhwyjqW4g2hpOxDCabwTjLhHVWkoV4fyMKSqSGQk6o6p8IXnmsUtiGrS0q8ND74BhNnHOSgF/A+6KrIrOCPZBg3Cobg+77IukFl2rWyTzSDvG3a1JpHVWggTjA7Do6kcjnELSl1aiNrmNmptNVp6VfOsYTiR2LaPWQe0RsK2dbeEItUeV9MTOplmhPugtmYCBjLd9Ce8eyNZaSu0YqRAbO1c7RU5U2ZJ+SwrLdnLFKyNSg6kDTMQ9dZ6qjaJd5sFasIAHAAaRWNrJmsSbEp/RyXRMv70qeQpIVdsC1gNSSTwzyjXMY5yLl4DONlNxqOUMXZJpZNgW1dmnlEXK7fSalliuSj1MfGSiElSL93rD2xYJd2WqDW8p77U03zaUFW8NRERlGXDBprkhH5BdjYB0dmRiMdYsSDdJ5KFota2dbQ2caxAhwBQ5EXgoCpqlznl5ZwgpoZi/nFkdkGlXKUlB+6YZOU9diUOJUOS02iaKINbOuUIlm6gTwziYXJOpvdokc0G8Ni2lCjjxJOllJtE0OyY6P5AObTyjiqaqrolQ7MrlE4LuhDZAAxkJJClAgEgXAzEZXRekx+gySKHLvqXPyhdU4uoMpmH3lLGmFV0qSMKDuswktA2MW3aZdQltl5xVHCA44EKdUb3S2FFRORzGlwdR3RlTmxzztdkZ6mvSLsuAkzbaXrOlalCxAOo0Iy1JiJPai4xUnklW6M9ta9UJim0TDKXAmGg0p9Lzv1ncKsRCzYk4cr2sAIudV2kp1No9CpM9s02inIYUGPS5BUs44R6xQ6lzEfFI7o0TYude2UlJZqVabQUEkKUnCb3zy74vtVFDnGXdoqhs/JTzsmPSpqb9CW8W0p9ZwNt3U4sDRIFz2axotFtXeRPUXjg8z7UbMU+jzktNsNvylVlJiUmm5FfXUkODEkXzN8wRiFri+VosDky/VJx6dnylyaeQgvOJSE7xds1qAyKjqSALnO0XDb5+hbbuSW1lD9LQ00yxIFE1LFgulKnFJXYm5sFWsrMWHGKuwzZTh7vjGW2njgd2sjF9m0s+TwbV7jDBpggpHJA98Tsy1aVf/uz7oZJbShdioeoNT2mE0CYilqBDfPnDrAn7SfOOAR9oHxgodjYNR277IchI4X8Ekx2G/wBVffa0FCsbBvKO3dgYdWP2LDtUIIVAZKW2k+cNILG+7y0zMLy6M1DmAYEdfJO9X+BNoWYadStILSkItYlaheCgsK5L71pxsj10FPshhK/ONtOAAkAhQJtr/OJxKLG+hvDZqly7RUcC13UTZS8hck6RVE3gaY0jIrF+SBcwYIWRk0/7YlENBAs2lKB90WgcHf5xe1Mm6NxcasCQD3Q5DGBbg4MthPjx9pMLty+N9tJGRUL92vwhQoPo61n1nHCf8+cdLMyHU32G0V6sU2Wqry2J9kPsIKSASU2UnRQINwQScxFsLYvn6vGIZtvGFuHVZv55/GE1ihlRnNn5go3bc03PsDSXqje+t2JdFljxvFZmtlmZdZeTK1Giuj+vlFelsjtumziR3iNQWyLQ2UwQcsu6MXpplKTRn0pObRtpPyfNyO0jKNUpWC6O8ZLHiIUTtnLsr3Vap05TXRr1caR52Pvi2z1Ik583npVmYUNFqR1h3KGfthg7R3UoKZWoTSGx/VP4ZpvycufIxO2UeH9/fsdp8jOWq9LqFvRKhLrV9lSsCvJVoduSpw3wm3MaRDTmzKHsRmKXTpv70utcqvyOJPtiL+QUSJKpR6uUg9iN+jzbJ90FyXK+/v2FLyWJUtyytCamlAG5Nog2ZuroVglK9TKgeDcyA2s+CgDEjJztZcnGWKjSGm2VqsqYZfulORztnfzgUk+33/oNrFHZbEy6k5XbUOHFJ55RktNovpW2DErKMMpmJZgTDBEyHllII6hPEpsNLjMWMbhurZgaZxUqUzL0zbtTEmtK22WnHVoUkYmlrwkpBtcixHHkOEKcbqyoSq6DNV194hbrQIub24HiLReaBVpSZkHXFbRopFRZTaWQ+6+22UH1gUtKSpRNhYhVx26Qx2g2Pp7zwm5Nz0KYmPnFK+qo90Vhxb1FLyXkszmG26U36qyeOedhGsm9NWyEr4HVSZVL06Rp4nWXGmluPbxF1BanFE6mxOdzmL9bPOGy6PN01P8ArGXfYDhAQp2XW0D2AqGZiz0ifqtAqKp6Rp6anPoas7KJli8t1JAJShCcwchYjhGoKk6htNSBPURbtEmptlLkxR6vKB1hwk3KFAjE2SRZVjlcdW+ZIQ3ILMBflFOS7qEkJUpJSFEZCGyZF4DNbJI44TFvrFEm6VOOMTtPfp2NRLbTvWFuSVi4XbS4PfEaqRXmcCh4RFDTIP0N0autjuQYASbnF8DuR/OJcyi+KTBNylPrrQnvUIKCyL9Av6z7h7gBHCnNfXLqu9dvdD1cxKtE7ybl0W5vJ/jDdyrUxv1p+XJ+6oq9wibS5YL0EEjLp/qge8kwohlKB1EIT3JENzX6aknduPPdjbCj74BNZU5lKUuee7SkIHxhKUR0x5gURqY7dQ2MzV1JuinS0qn7T717e6GtqjOLU0msyjS7ElEqhKiB3wbvQ0iW3WekNJ6oyFLwCozbUsXB82lZ6y7a2AzMS6W8SUq5pER1UkmX5iSceZbcKA4lJWkGxyPwMXT7Er2RQ2llnFYadKTc6onIpRgT7c/ZCnpdbOYo7YB0u6bwBnJmqVhymuSr8jLSaT86y+U7+4BFwEiw7jEgKNKcWFHtLyzf96FUrw/2/kq14PRjKDd1Z+o2beOXxgZlvC20gfYv5n+UOi2psLTkUqtn43gs4j55SQfVCR7I7KyYkPMIwy7p44SL9+XxiOS0AgRLzrZEuQOKgPj8IaqZsmwJhcAiNU1fvhAt3iSU32Q3U32QqGRq2hnCC2tcok1IhFTd4VARa2eyEFM2JsLGJZTVoRWzrCoCEmZRuZQUTLTcwg5FLqAse2BalUpDKG0hCBYJAFgAEnL3RJqZ7NAfdHbpKFIxEJASo3PeBEVkaGZZyiOlaWufnXVMoQVY3CteDOx6oF+GYHlGgUXYyaqiUzE0oyMmSMKliy3Pwg6DtPgDF8pOyFNpbCWpVmyAvGSolSlqvqonWNVpuQroyh91cjs2xOOtJWtp5Uq5iF8Kx/EWhnKbFuVdElPOS/orj6y42yAesgHWxja/6M08mZS4yHGHpgTG5UOqlwJwkjvsDEohhpshSG0pUEYAQMwnlGnTvDFdHnjbymStCqlJqjaJqQqtU37S5mWdUFrQ0EJSlIvYKsSQRYm3dFr2O2nUZWVTW31uzISCmZWAn0pJFjjHBwWF+dgddZbph2aXtHTZJLSsDss4pxtfFJyz9kYFOSNYdmXWWW5szKEhTjTIU4LfaTa5t7RGT/tzaXcdWj0ZtXJ03bXZapUpTiil5ohCmz1m3B6qhxHLLUEiPOVW2FNBqLlPqFKqImEJC7+mpCVA3zSSesMtR3GxBEJ0rpQqWzG9JUJpeiWlYhY8FHujXNl9o0dJuz7VP2vUwirHE5I1BlFkpPC/foU6EdoBhThDW55Gm4mOjZuV/wCyXz+OfT8IMNm5ZNyKOxb784T7kxcpiQdk5h6Wm0bqYYWW3Ea2UDn4cjyIhMsgcI5ulFdvov4K3sqqKE2j6OmU5B+84tfwEOEU11HqIp7X4JUq96osBYHKCmXtppDUIrgNzIVMlMWznVpHJpltHwMD8mhWTz827f7UwoD2WiX3Nrx258otRJsiE0mUTb9FaUea04z7bwumXSjJCUoTySkCJLc2gu6z0hqNBYk0180kHhl7YQn2QWW1fZfRw4G6fjEoy31CDzhGoN3kZgjVKcQ/VN/hDrAEe20Q4oDilJ+Hwhbcjthfd/PgjQgged/jCu7H+RBQIuPQ30j1DpG2Zbma9RJ2mVBpoKM36KtMnOpxYcbLhFib6pGmZEaCUXJuPZGPUmtbU9GqGaRNU8T9IZGFiTKMC2kcmlDJSRwsVdoEaJs3t1QdqQG6fNiXnNFSczZtwHkOCvDPsjTT1E/hbyJrwSUw1jwgD1Te3hDZbd73GExKuMlKiFApPIw3WnUGxEaUSRimdYbra7Iky2DplCamTnaxhUOyIU1rzhItxKqZ5phBTA4ZQhkYpu/DPlCSmtYklsWBhAskaQVYEeJZbqw2ykqccIQhPMkgCNMoeztPo+BZbTMzyRZT687G+iRwF/HnFSoLOGqNuFNy2Cod+gMTTu0sjSZltVQeKXFZoCjYHO2XmIqCSyxFwclWpktqmWW3FNLC2ytAJSRxF9DC+kRVNrCJ1BWDcHQCJJDqV5J11jZCAfdLLZWlpx4j6rYF/aRHS7i3W8Tje5vokm5HfCnbEaZtth2YaQLL3l1XVmb5wwGO1a/0JNs8z7oyKmrcar5mGsSQOqpQyPZnF82krrQZW2VXKSTflGFzVTaXtA1NIxB2XStKOubWVa+WnCMZ8jRIdMmy1PmGjtHRsLU284BUZe/VcUb2eSOCriyra3B53zbZjbSY2RU6kNJmJJ1QKkg9ZB5p/hEV0pbV1mY2go8pLB1tXpkqsIVdKVhSsKQTyOLWDVeRXKzL7b7RYdacU060rVCwSCP88I5nJOWC0sHoKUUjbqSaqlEcTNTW6CXUBWbuEWAz+uBwOoHPWJLRSVJUkpUkkFJFiDxBB0MYvsvtZPbHVP0qmqUuXcFphgnqucjbmI16kdIdL22woeWGKuBZJXkXLfUXzP2T4d1Yl8yaoc7u0F3fKHxaNuUF3VtBBQDLd5GC7q94e7vWA3ecFANC1ygu7y04w93eWkApuGAgyj1hbW0CtnetONH66FJ8wRDhpvPwhZDXXT3iBAQbI3jEq4frJT7UfxEOgiCyjX6G0i4G7UU/srI+EOQ1lkD+yYFG0BVtmumOqUyWTTdo2GtoKWAElidF1pA+y5mcvvX8IuLUnsNt/hNIn002oq9WVqCsCweSHgbnzV+GMQ3ragUvdXhZ3MftDMeMcqUSE4mllsHS/WSfER5y1ZRVSyjo2J5RvapXbrYYYW31VKno0anxvEAfdeTp+sEw/kulSm2SjaaRmaE4rIOkb5hR7Fp/nGO7PdI+1eyaUpp9Qddk06MunfNW7AdPAiLvIdMOztYBRtbs96I65kuZpxtftKDa/mY3hrR7OvmQ4PwazIzsnVmg9SZuXn2yL4mXAr2ajyhVSLXGnfGYyuyuxm0bof2P2hlpecOaWy4ZR4HuFgf2TEqqlbf7O2SxPGqS4GSJ1gP3HYtHW/dEdUdSVW1fyMqRdSDaCFN73F4prO38/Lq3db2afCh6y6e+Hv3DZUSMt0g7NTS92upegvf2c6yphQ88opasH3/YVMnS0gg3BHcYSMuDoTC8u+xOoxyMyxNJOYLLqV+4wZTZT66SnvFovDygIhc4adVpVoqsl9lZuMvVUL++A6TtlUVbYiZqcuL1CmqE7L2yOEWxI8RfxAiRRQmarV6dMTOLdyO8XhBsFk4bJPZleJXaeZvQqg2B1XG1II7CIqMbTTE3RiOz3Sa5OScs5I1FcolTiCHmMJxN4uug4r4SR1TxBjYNn9p3as5gkQS3lxvl2qjyjsBslMSVYdNUbwU2tsmpSZQTZaA6ptQOWSgRmOSknjHq/ZufptOpTa2JMhtlOEBAy01I4xlpSbKkqLvLy8xZO/eBGpCePjCU7R5KdfS/MpO9SLXS4U3HbbWEJSpuT7ePGmVQodXEOtDKYYk5FTiA446tfWut258PGOqrM00htXqLT1MYUyIUSLFQVcaRj1So9Pp9RC0sgqt6pOQzjSK5Pol2jabUhA61r3jOarXKWqzgc3ieKxmSe6M50OLGm2FNZrjFHeelmQsTss0wUjrAJcSbnkBYw1222URXmJmclWQqoNnEm2ryR9X8Q4eUO6bPy9Sq1LbRMF1xLjiwwU2CEBpRxHyFotZaSM8AvwjCk3ZSPLM6wW0OKA70w82VmaExUml7SImTcgb9h0oKeRy4xsm2PR7LV1p6bpCUStUviKcWFt88b/ZV26HjzjMJroy2oSpLbNFWpTxwYg+2W0feUoKyHGM2muxayjbJZ5ielmpmUmUTrDqcSH0aOcz569oMKYBC1MpjNIpklTpUJ3MnLtsJITbFhTYnxNz4w4tnkAI0okYbvln4QG5J+qo+EPrHOAtDoBmGFn6vtgPRjxwiHdteUdhgSAapZwqve500g+C0L4bQYMqUBhST3CGkA0CMPqJSkXvkOcDY8zBZuekpAEz07KywH9o8kHyveIz+llC/7TaPc2s/4YhyiuWOmTtX6NaZUgpRYShw/WR1TFCqnRFOyilLpMwT909U+Y+MbUimVOQsmRnd+2NJefSVZdjg6w8bwKqn6OLVenzMmP7VtO/a/aTmPEREtGEuUCk1weZp3Z6tUtRM3ILUBqtsWv4jL2RFl1pZKX0FCuTrdvan4iPWDTEhVUFUk7Lzaf8AdrBI7xqIhqlsNS6hcTMm2T2pzjB/0uPhZotXyeaRJNOi7dyBn1SHB7M/ZE3R9qto6AQKLW5plAP0QexJ/YXceyNNn+hqmvErlFuyy+GFV4r050SViWBEpOpmUjRLqL/xjHo6keC+pF8ikt0215tIb2hpVNq7Y1LjJaX5i49kSrPShsZVUbus0OoU6+u6Ul9sfq3H5Yo81sZX5G+8pu8SOLCyL+H8ohX5N9i4nJOYZPHeMXHmLGH1NWPP1DbBmrMyXRxV146bXJSSeOgdQuUXfvGARPSmx9WQgK2a2pmXmvqhueTMp8lA++MD3LC7gFGfDEU+wiObkAlQVLlSVX9Zu1/NJvAtXOY/oJw9nqDZxypyZMltA8XpttxWN0tpRcKAKeqkkaQfbuoNSVBmlpVh3bDiySeQ19kVTYpucp+w1HqEzvHkOYt464VKVYrVa5OfARGdIm0LiKctCW0F5RbDaVi6VWUFZjiMs+d49NT26d+jmauVDKTqSpTZPZ6RmaDNomqLLNFqYDrTiL4RvbgHEAoEki2RA5QpP7ZPuzkoilMOsyMwtCXCUkBK+NvfEL/pm2kRicnaZSp862VKqSVHlkrjGqM9Erq6clx2ouyyw0FGWQkYUqIuU4jnYG48Iw0pb1UXdGkk48gyL9QqiyiSK1kDMjO3ZEqrZCcnn2n55xbS202Jva/hFvo9GapEizLSYQ2lCRitmVHiSeMBKTLc5PTsu880HpYpxNIdClJSrNJUOF7G3dHckqyYvkzTaTZlC2Slx9QIFhfSMoqK5Civhh+Ucdd/tmRdK/DhHozaqlS0xIuKQ6W1pSSCM4zSqbDSc3IsmZHzqhfESbjxETOPgUXXJVthZ5uoVWamH3mGES0qENtrUlCgVqtqTn1Qcu2LyX5axvNyp/4hH8Yz6Xa2P2YD0ltIXEzbjpcQRICYTu7ADMpNswcu6FPl3o3Fzjcv/wDZh/5I43qKLatfqbKLaLuqak0g4p2TH/Eo/jDddTpjfr1OQT3zSP4xTlbR9HSfV36j92kJH+CCf0w6P2b7tmoKPNNMQn4CF1l5Q1CXhlrXtFRG746zTwOfpKT7obq2roKdKtLuH/dha/cIrf8ApE2OZB3EjWFdzTaP8UIr6VqAi4YolWd5Y5tKfcoxPXj+ZfUrpy8Ms/8ASqmKvuTPzNv7Gnuq94EJr2mbz3NIqznIraQyP31RUXOlmTVf0bZQL7X53F7kmGy+lip5+g7OUqX5EpWs/CJ68PzfQfTl4LkNoJ52/o9GbR/f1BJ9iATAh/aR/JmVp7A5pl3nfzYRFBd6UdrnLhp2QlB/u5VP+ImI1/bHaucuHtoJpAPBlSUfkAiPxEOLf/B9KRqYo21EwLvVF9lH+5YZYA8esYjZ2h09gk7Q7QsfeTNVNS/3UlPujKJhM9PEmfnpyavrvXlr/MYQTS2kZ4QD2qA90Q9ZP/H9XY1p+WacmsbB0fNueTMOD/4KRuf2yP8AFBf9JezIyEjWFDnvAL/vxnjNN3uTLJcP3UKVD8bPzpAtJP2/uRDjqaj4VBsh5PUDVFRKD/U83M0xPBlBDzH/ACl3A/UKYcJmKpKg7+SZqCPtyLu7X/ynTbyWYeJQcN9UnQjMQqBbWPTSS4OYr0w7QJ6YCagluTmychNtqk3b9ilWv4Ew6+SpyTSFSdSmQ0fVRNJD6Ldijn7YllkLbU04A40odZC0hST3pOURYoUg0VKkm3Kco6mReUwP2QcB8UwtoBd/UWfp5FmaH2pd3Cf2VfxgpqssnKaamJQ/75k28xcQcytSa/2eptzKR9Sdk0k/ttFB80mO9JqLVw/TkPDnKTiVfuuBB9phZGchyUmx+jvsPX+ysH2QV6msrvvWQQeaYbTL9NcuanIuy54qmZFYH7aQR7YSl2aW/lTJ8JVyl50Zfq3+EIQ3mtkqROA+kSLC+0tiIOb6Mdn3kLKZUMm2qFEWMW1clPNZonnSOG/YSr25QiROq+bfXKqbcIQpaApKgDxAuRCcIvlFJtdy7y2z0lK7Ms0SURu5NuVTLt3zIAFgTzN84yLbbo8fqNTalpeb3bTMuHUuKauFkqIta/C3tEbXLrUhhoOG2WR52iqbVzQZqjCg284hUuoEtIxWOIWv7Y1nFONMlOmZlsR0TqY2qkZqsTMs9JSat+UBrCXHE+oO4K636o5xvU0lJllpK/WFr34xnBD1QaW9Tg8AzksFspUScxYHU5RFt7W1yXecl6k3hlkLu0pTRaU4eIsdDEacY6awNtvkvTdSfk3Fb3MA8c4Gp11xTA3acNxfIxSHtrECxWcJIvmYaL2pQ4tIWq2VwDwEbKSRDssj7kxUEBCnDY2v2a3iQqkmwWGmesA0yAc756xWk14MyrgaSgrI6pHbDdnbGTW0+y1jmJtkWmCSEoSeHWOUFomjONvqM7P1hpMhLOTS0IUSlDeIhNxn3Xt5xVDspVM7Uia79x/ONXoU2qf2rmHE+oJBwJKTcE7xs2HOwEWwpVyPlHDPQjqScmdMdSSVHnsbJ1U+rSJr/kj+MHTsbWFHKkzA70JEb4Uq5G0FKSNTYd8R+FgV1ZGFJ2Grav8A3a4O9SB8IXb6Pq2r/qmHvdSI2hRSCcTiB3rEIqmZdPrTDKe9wQfhoIXVkZKjo2rCh1ksoH3nyfdDlrotnFG70xKI/aVGlmfkx/1pm45KvAfKErayXFLP3W1H4RS0NJC3yKEz0XJT9JPoH92zD9no3p6B87NTDndYfCLWZ5B+jl5pfcyR74ATD6h1JF39dxKf4xa0tNdhbpeSAb2CojfrsOOn77hh+xs3SZUfM09gdpRf3w+K51WjEs3+J1Sj7BABqeXq+yjsbZKveYpRiuETbDNyrTeTTTaRySkQru1fZHlDdyRcQgqm5x9KealJaENL0gZGoMXGv6en/wA0U3QFo2Y2TqVHedfnq1MOyzdt3LJd3iV3NgorKUqA16pv3xbEJxrSkZYlAZwta0qRxIR+ZUIpGsXGKiqJKvKbe0CafVLTE2afOJWpCmJoYFXBINr6jLIgRPtPNvpBl3W3QfsrF/LWI2e2VpVSStUww4lTpKl4XSpKidSULxI/divO9GcswSqjzy5JXAICmR/4asP7kTc12seC6EKT6wIPaLQF4pKKTtjS8pKoqm2x9Ve7eHvaV7DHK2o2hp+VUpMu7bUneS5/fQE/vGDqeVQUXVKynNBKTzBtCEzLy82CJuXZmf75pK/eDFYY29l1j9KpU+1zUylMwP8AwyqHTW2+z7isLlREqs/VmUFo/vWhqcPIUSAokg2bsS5lj/8ALvOM+xKgPZBVSvo62F+lzjiN8hJbdeDicyRxGLW3GFpepyE4m8rPyz4OmFwGDTEuqbbSy0tGNbzQSQoGxxjOKSXYRbt0tuXZUpWNaU6dlopL07Mzs/NrlUsLQwQwrerUm6/WNiAdLiLJVpo0+hmbeslSR1rHjb+XtivyTK2ZZpDqcLpGN38as1e0+yKfgCUpKl+jBTwS28pZBCFlYFjzIHDshxtPSWaxQp6Wm3hu8O9D6R1mVjPF3c+wmI2lziXJQLSoWLile0xYWZgIKXmiAVWxA+yGsqhM860uTnZ2uLps4pEklhaBMY3UBZSoj6PEQFXFyCLi2sTE1J0KelnPk9+TlJxDymWEylTVONvpSMW9cxJBQVDIJQDnfW0d027Irpcm1WqCy6uQccSxNSTQKtypawELbTrgxGxSNL3GVxETtZ0U03ZvZ6WmKDPv/LEtIuTFexThcQtKDhccCb2QQskAJsMKSCCReOZ7otqilTRESczVpypKpkhjfdCikITmUG+pPADtjcdntgqNTaZKodkmnnrY3nXU4lOu2zV/CGXRVsS5I02XfnmUSLWBKkMJT885xxvL5nUIGnHkNQmGGlJKlADIi9tLx0accWyHkyivy8kxVJBLqEtsneJKQk2AwG3q56gQ0Umkck/sO/wiXq8upraKQ9YFCXlXvybI+MKFareur9qIayVHgg8FJ0CMX/cun4QG7pZPVllKPZJun/DE0Vq+0fMwXGeJJ8YmiiJ3cjngkHld0gv4pgfmk/R02a8JQJ95ESROXOCm3ZDoRH754epTpnxLKP8AHHb2dVpI4fxzaB+UGHp0gtxnBXsBifTz/VySPxPOL9yRBNzPH1pmVb/u5VSvzL+EPyRBLEjQ+UOgGZlH1fSVCYz/ALNtpv8Awk+2CmmMuD552cfHJycct5JIEPcJ4i3ebRwAIyII5g3gpAMEUintqxIkJbF9pTQWfNVzDsISAAEoAGnUEEm5pmQl3H5tzdMoF1rIySOZ5CIgbYUUjKdBHMIUbwrjH0FNmursJYdqkD2EwgDa57IXdyl0/jT+SG5yCu4xYgMghPcIISLmD8ADyEFsLwAEOekAlxaLhC1JvyJECRrwgvE2EADd+Ulpu5mpaXfPNxlKj5kXho5RKc4kp9GKAeDbziB5BVvZEje4MFzhUgK3MbC0aYJUpkg8y00v2lF/bEdNSUhsC7J1dCy6TMCWZaWVISVrQq1+uU6JPDui6m+HTOIbaygjajZesUcpC3ZuWV6Pfg+nrNEduNIHiYlwXKWR2SCKi/tlSJqRdQacZxKVsOjCoNOJOl80n1ePblCjci/Tw0zP70m5G8cXjKxxNxlfs4R556L9v5umvplSlSi6QNwE+s8Dax5KNvEjnG7f03lV/JzMylyYYquNDLhTgQlxFiQV8F2NwOICuUEJxkrBpogtn5l+TaMpNAjdPKbV4Eg+6LfIzu+Us63NrDs098VepEylSqgcAG7mgDfW5Sk+3XxhSkT6iqwuFEgeEVF0JoW2w2kfpezFZmpFJM5JsqdZSQCQtJBSoX1Itcd0ecdh+lTdbV1s7OzEtM1baCfYM9LrYUXFqWSQkBWSUFSlqVbLNUbtt0tSpJZsC06gpcHMR5h6LpVil9NdQZWMxKpeZBtqlSkn8w84z1FbCGEfQKUmEEEN2IGV+YHHxh0FBxJCTn7optPqgdCSleSrE59kWSRmOoeCiQSPfHSmSVnaqX9HLM3u80YxYm2o598UFzbFLa1tvUqaadSbKQp9gFJ7RvI1La4Y6etKRcqFwRwyipS6vmEFPEXy7zGU07wxxKv/AEySTlSpi3/1DH/9IIra9f1KS5+tMtD/ABxbN6vPrK84LvF8Fq/aMZ7X5KsqX9K5tQ+aoxV/xKT7iY7+kNWX9HRE+Li/ggxay4ux66z+sYIVKIzJI74e1+Qsq/yntC59HSWE94eP/wCsQXf7UrGUvKs/9yfipMWc90J58INvlhZWfRtqXT155lkfdbbH+NUFNBrT3+0Vp1I44VpT7mvjFo53MFVkNYNiCysHY8up/SqnMu8wXnc/JafdFhlm0MyzTTScDbacCE3JsBkBc9kKJHWgGskHXUw1FLgAj2QQRrjHxhq3SpJbaVLlgpRAJONYuf2odu/R35KB9sIY8PVtplDBGjv/AETfav3JENVHqL7jDiZPVaH31/AQ2V6i+6KECoiC3Gccr1jBePKADtR4QA4jsjuZ4QAMABCLQU3hQkWzgilawAFCj3wGIhWRsRmCIEHsgMQF7+EIDz30t7HLom0lQrbUjMnZ+qJDjzstkhiaVcKSu3qpUsYs8uva94lpKuVja/oVrr0r6M7XNl5lqablFMpQSqUcQ6sgAes4yFp7cRva5jbV4VsPtuNodacbLbjbgxJcQTYpUOIIyIjCZ3ZDa/o52lrFT6PZF6fpM6QUKbRv1s20SWwoKxJthxEEEAcbxzyjsla4ZadqmTbG3lJ2qkKTU5Suy889V2lzEswMnVMIOEk2ABCFXRccrEk6T9NmwplKgDj0vx7oymrubaT5pW0W1my79OFOUtKZ9LDMu0JV42LamwkOBZdIVrYgklIIubJSK6UoRdYSAcgcoqEr5E0WnaOZXMSbrYNyE5CMX2YoiprbPamoSzO8m6bQ25pCki5GGbRvAO9vF5CNqkUoqa3cRBBTfxtrEB0S035N252w3gSViSZSkHigvm4I5ZDzipK6JRaNkK4ZpCFIWCnBkdeGsabS5i4IVmoc+MYlT5BWxe2Rpir/ACfNXckFnQtEnq96D1T4HjGxyaRgC2bgWubxpB2DHW0HWlldZISBoTFRpiiqnSxOoQUnvCiPhFjqjgdZURYJOQy/zzit0zOTKR/VvOIy/Ff4xUhRHBMJk8BBlg3gALRBQW2WkBzjrGAULwxBVXz5QUDLMwpbK0EIvAAmYLfncwci2cEsBnAAA1BHOAb9VX4oG4vAN/1g+9AAV76FfZb3wycau4s21UePbD13Npy32YRKLknn2RLGjQps2LX6/wCaGyicChzt74WmlZtW0wk/vGG6j1fEe+NBB1HM3hODEnEYITCAEDI8OcAbc44KygMjCAKc+MFuQIEi3G0FI7YAC4iCY5Jv60DY8eUBYgwwOV9GvuH5hBGjkSNcarftGFDbCbj7OX6whJr1Df7SvzGEAw2ipIr9DqNMXYqnWVNJJ+3YlB/aCY8xt1N6WUW3gpLqDhcQfqqGRHnePVL2SUkfb+BjEOkjZNCukJKpYpZZqUuJ5zLILCyhdu9QB/WjOXNopDvZCrLUghxQ62esT+xy2zt1UXWibzFJIX3ofQQfIxBv7OCjyzc1KvdUDrDS3aI7o7nkubfboLxbymzNvAoV8CYHhIlcmibU0b5ZpiS0P02Qc9KlFfeT6yO5SQR325RO0CpInJNhxs3QtKTmeHCAZcwuoUcwlQJHjGcbPV40PaKcoU4vCuXm1Nsg5YmyolBHMFJEXdMGrRqFRp7wllLQ5iC+AitUJDqZOYDwIX6Y74gBP84ujimnZUjfIbVkRiVaKyhO6eebK0LCjiBQoEBWihcdwPjFslYDEHjCZJg6gM7mCWvEFBSTwgpJJMGOpgpA7YBgE30ghGUGPugqhzgEATwgl7Ai0GKrXuIIVdkMAMXZBUeu4O3+MH1hMfSuDu+MABlAKQu+YsYIhN0JvrYQoDkrlCCXLJA5CENF5mDm0L6Nj3mEidLfbEKTBu4nsaRbyhAm+H8Q+MUIUKrXghUSDxgFHPvgpJAhAHSbXgoOcFBNrwGIcYABzgpPLK0dfXOC3PPvgAEXseMAFHnAi4EF8PGAA1+qR2p/MITaPU/WV+YwYG4Nx9ZP5hCbX0Q71X/aMHcDnj1U8OuPcYzXpaUiVqGz0/MKW2w0zNocUgXJspteEeZPnGkP+qn8eXkYoPTMgHZWVetdbFRASeIC2lg+4RMuGNckW1t/s4/IKSptcw2UBOBV7kdnbFU2EQin9KVNVLOuLlJh11qWDgsvdOMuHrdoyHheM/ae3W8KTYAWBHAxauiuelZfbmSnqspQlKdKz1QdWeIbl1ZeCSoxhuurHVG8O7Y7PS200vs1MVmTa2gmEpLUipR3huLpTe2EKIzCSQSNBpFA6YaU42ul7QyRDL0sv0V9y2l1KUyT4hSfER59n6xOztT/AKSuIEzWpiooqCG1A9d7eBaEG2drhKe6wj2bNyTVWYnZKuyiC3OMYZyWSvEEKKiVJSrmlV7K5pBhwm9S0ymtvB57kOkCtsLJqM0p9BOa8Oh7o1HZzaFupyDE3KOpaRLlbzrWHN4nLXn/ACjLtp9lJ3ZKomSmwZhly65ObAsJhsHUjgoAgKHA9hEKdH7z0ttMzKJXhlHuuQs+qRqO28UpNYZLV5PQZWhYxIN0nQwFwBkM4bNOJRkMkAAAcoXN87RsQjiRbOCE3vlBsQsTBCb3tAUATfhBb63g+VtYKdCYBBLwBN9LXgTBLdogALc84KPpVX+zBsOucE/ruwphDDp1MML90Pk63hgU5mEwRf5o/PqHJKR7IQJsU9/wMHm1fpTvYQPZCJOae/4RYgxVrfSC4r6wBJzgL5HjAgDhQtBcoLADjCAMoC172gBrzgL5QHcYAFATAG/GCgZGO0gAEXw9uJP5hCbP0Se2/vMKJNtTliT74Rl82EHsPvMLuAExkEfj+Bik9LP/ALPyST6q6iEqv/dri7TGSEn749xiodKsup/YyZeb9aSmmZg9iblCvziE3hjMjktimp1pT6F2SCLgnjBq5soy5s/NSQGAvtqRjGRSSCB/6comtk6k2tt5kKF1JuEnsMSNTuuXIVa9ibjSI2poG8nn2QZcVM0VcwkJU3Ny6XOFlB5II8wY9vTB/wBaT/PeOf8A5Vx44rlOLz0xItqCPSptKAsC5QXFAXt2Ekx7CLfo84+zjUvdJLWNRuVYVlNz2m1/GMdFVJr5fuVJ4KF0yyKpjZBmdbvvKdPIXca4HAW1e3B5Ri9IqDzE4w+pXXbVckDUR6XrtKFfolSpSiAZ2WW0gngvVB8FBMeY2EEIwuJKFjVJ1SoGxHnlGk8SEuDdqfWfS5RDja7rAHiOcWCmzXpUryW2cBHhcez3RjWx9WU2SwtRxJthucrco0rZaYUqbnGzcpWyhxJPEhRB/N7I0i7RPBZgLwUmBCreMAVGLGdwMEzMDiyMFue+8AgqrkaQGnbAkKhM3F4AB4ZwmT88n8Jg3jCajd1sjkfjCGK3iPWVBahdWRMPuyGriLuL01MJgi5zBBmXvx2hO91JtwvHOqu86cs1mCA9cdxixBiYBJgIAHWJGGvkY4G5zgL5dkADa8Ag17GAChBSoRwIOYEIYe44QFxoYC9oC4BgCg4IsOPXR+YQlLn9Hb7viYPfIW/tEfmhKW/2dv8AD8TAB0yeon8fwMJz0kxU5ObkZz/Z5tpbDvYlQIv4Xv4QMyeq2B9v4GDuesYQzzHSDMUOvvyE783MyTymXe1QJHkdfGL7WgtyRJlz1yCQOcRfTFR/k3aiTrjKfmqo1gdI0D7YAPmnCfAw7k53fUhtbl7AEdwjKOLiwfkx+ovOqnnLq/SZR1p3DxKgcQHsj141Py9TdXPU95ExKTQU8y6g5KSpwn/PdHl2p00HaWcmWgnA+2yog8FJukm3cBGx9DE9MzmyLgmWXG2ZedmGZZaxYONhSSSnmkLKxfS9+UZ6dxm15KfBowvcWNoxPpE2YXT5xdalEEyE65d4pH0L51uOAUcwedxyvtKTZV4YplWJ+RmJSdTilphJadBH1SLezUdojpask83S8wZd4FBKVX1jT9iq3eflG1qJD5LRJ5kZe0CM0nqe7Tp6ak5wfpMq6plztUk2v3HI+MT1ImlyTUrMabtxLmnJQPwjKDBm5x1zqRBnQA84AeqFG0EPPhG4jstSYLiyyMcSLWvBLa5wCOueBgCRzzjiBnBDxMMDjaE1/SNkcyIPYDxhNwgFB+9CY0HBzgpAJJjgfGOxQAWJSuu5+M++OQev+r8YTKsyTncn3wAVdZ7E/GABXHwvABZ5Qnx1gSeUACmLKOxa5eEJXPjAA+MIYrfsjrkwkVkW7I5K7wAOAbiC3trCYVe94LjNyIQhe9wLfbT74Sl7iXbH3fiYG90X+8II0fmW/wAMIZ0wcmx9/wCBhlX6p8iUqcn7IUtpIS0lfqqcUcKAey5v3Aw6f/q7fb+ERG12zEvtfSvk+cmpmSCH0zDTsuRdLiQoJKknJSescsu+B3ToDzpt3txtHLSLdNrc4ms01c2iY3kywC+wQTdTa02smxIwkHIkC0XDZB5M5SX2b4sNlDuivbUbKTtp+l1hTKZuRWhC3gTgdQvNtabj1VA+FiDnCnQ++4tCpV25dZWqWdB5p0PlaOSLamW62iVYYLW0TbQUU45ZxScr3wqT8FRuOxLbLOydAblRZlNMbKRe+ZN1G5+8VHxjONqaGwmqUqozwO4lXXEPJGi0OIsAbcMaU+cWro2rS56Xnac5LJlGactSJJASUky2IAE31GImxF8uOUbRxMjsX5Oah3wylSC0vv8A4wuFaW5w1lVfNrvn1re0xuBm3SrQt3My9cYRdt/DLzlhosDqL8UjD3pHOIemyapumlKQDiBT1e60azWJBFWpE/IOpxCZl1oHYoC6T3hQBij7IShXT7LFlGy7DhcA/wAYzSqQnwX2UdD0pLOE3K2EEntwi/thYkZ5xH0tW6Z9HX6zdyjtTe/sJ9sPioG8aoSycbc4AqsMoAkXMFCuBgGCFHjnBb65wBXY6QRSs9IAB7+EJvZBNtQr4iDk65Qm5bBlzEAByrW0dc9vlBSQCYDF3whk8Fi2cAFXUqx0A+MIpV1RzygUk3X2WEMSFcdu2OK7XMJYjzzgb5CEMUx684DHe8J4tY4KyhAKlR4aQVLhHK0J4jzgNLgQAOEua5AcMoELF9PKERa1r6QIgAXxdUW+2PjBGDZlq32RAYroA5KF/IwRj6Buxv1RC7gGfP0f4/hBlrzNucJPn6L8XwjlanvgAy3pWl5hyuUuYknN24aa4hxJTiSoB04bj9YiKt0b0t6WqlRmHTfFNICsrEqLZubfqiNE2olzO1d5QsRKy7bCRe11ElZHtEPuj/ZPe1CarMyDu3W93LotkLes4eZucI8TxjFxueB3gZ7WpZZpiH3Wytt9pRQkcbZe+IDY+clKVOy0xItlMs60iWmVXuEhZuFHuXbwBi4dJK5eWlVtuI/R5ZOA4RYAnMgDvjEej6demaSmQnj+kMLXKTJSoqKVoUQe6+RB5EQ5vbJCWUejc0qIVkUmxhqycl2+0feqGtCqQqdNbdUvePNHdPG1rrHHxFj5wuyfpANcR96o2WQHCFgLBIyBz7oqOx1Nmpat1ClTSwoMKwtu3AK0EXSfFJHiDFoJMVyqzDtK2lk5xNksTjIZx3sA6gmwJ7UkeR5QnimBZJjZ5cpPMzLcwFJYbUlTZRmsEEa89D4R2IWuNOcTzCVVFhEwbBJGZOdhy74az1HCWQuWsVpF1Jv63840rwZRdYIjF2QGIC8FxAi8FxDwiTQMV38oLiHlBcXZnBVKveEMPflpCbhO7N+cFCs4BZ+aXDAVUczBcUFKuPZAXPMQATIVllBkH17cxCAPVvApXbF3w0IVKrk2gAsmEwrJUcleah2RIIUCs4MFdkIleRyg2LKAYZSo7FbyhMrN+EDjNrwAKBQtpaDJX2QiF2GggwVxtAAvisgH7w9xgrKvmW/wCCFfVtbIK+BgrCyWGz9xJhAKPmxat9s+6FMBcVZGE5/bAPLS94avlakANqCF4V4FEYglWA2NuNjwjNKRtVOy1Ck52YInanOOOEvvEhCTiuTu02CjnxNstILzQGmS7dIpU1MJ2iCFTLyy8hTwJSQTYBItbIi1zpx4QWodJEjRqj6EqXm1tKbGCZYlFrbN8yQrIADKM5E7P1iW3dVn3poodWBeyE+qD6qbDjbuiLm5VDNJdmW7pcSOqAchcgfGJ3tLAkkWrbqnVTpCQ1T9kp2SpiN7vZ+bqDThQWsPqtJFsSyogZkAAG8R2zXQ3J7NVCp1AVeaqE1UnQ7MpU6jdYwALpbT6uSQLEnQRmMtjS+tTLrjaio3IUc++8XFO2lSpmGWbYp0yphKAXpmWK1uKKb4jZQHHlwjOMoy+JodGnytGmJNbjkstIKwEqwt4gq2kDu5tkqGNAUsk2Mss8c/fFJp3SDV5lyZbEvSWS2wXApEiMyFAZ3UecW/Y6qVHaGWmnp6aShMqoYUMspQLkHMco2i0+BZHDONbiUOTpKyqwQiSVn4nKI/aXZjaOrUecZoNTYZdPqsOSTTm8sb2uSSnMajMQTaTpKRs088yaW5PlAxKU7OkYvAJiKpXSwuY2earTlMUwFPuYZaVmg2nqrsMSihRVpfgOyH8Lw2OpVZapLatLezbtQkJZ6dQxgU9LS3XdSL9cpTqq2ZIGeWUNU7XydVl252nvInKVMoK2ZlpzJOE+ooahV72UMhax7cpr3Sx8kT79V2foUrIOTbgQ8yXSpsv5qD4ACbKysoaKNjYEXOfO9KczKINRpdMlZSdq7sw9OJxFcul9wm7rLRzaUQLqGIpKjisDeJc0sWNQbPRtCM18iyPyg6X5pTZLjhThJJWq1xpcCwNsrjKHtzxikdFlRmprZVLs9MPTa1Ta2kqeXiKEttNjXtOJR7VGLpvMr2hrglB1LsMsrwQm/bAKXwtCeMgnSAYJUBHH6NXthMunkMxA4yQoEcIYB0m6U9wgc/8iEUL6ifwwbF2QAf/9k=';
+
+const BAYER4 = [
+  [ 0, 8, 2,10],
+  [12, 4,14, 6],
+  [ 3,11, 1, 9],
+  [15, 7,13, 5],
+];
+
+function processDavid(color) {
+  if (!davidImg.complete || !davidImg.naturalWidth) return null;
+  const targetW = 70;
+  const aspect = davidImg.naturalHeight / davidImg.naturalWidth;
+  const w = targetW;
+  const h = Math.round(targetW * aspect);
+
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext('2d', { willReadFrequently: true });
+  tctx.imageSmoothingEnabled = true;
+  tctx.drawImage(davidImg, 0, 0, w, h);
+
+  const data = tctx.getImageData(0, 0, w, h);
+  const d = data.data;
+  const { r, g, b } = hexToRgb(color);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+      // Bayer 4x4 ordered dither, ±36 around threshold of 148
+      const ditherOffset = ((BAYER4[y % 4][x % 4] / 15) - 0.5) * 72;
+      const threshold = 148 + ditherOffset;
+      if (lum > threshold) {
+        d[i] = r; d[i+1] = g; d[i+2] = b; d[i+3] = 255;
+      } else {
+        d[i+3] = 0;
+      }
+    }
+  }
+  tctx.putImageData(data, 0, 0);
+  return tmp;
+}
+
+function getDavid() {
+  const color = state.objects.statueColor;
+  if (davidProcessedCache.color !== color || !davidProcessedCache.canvas) {
+    davidProcessedCache.canvas = processDavid(color);
+    davidProcessedCache.color = color;
+  }
+  return davidProcessedCache.canvas;
+}
+
+function drawStatue(c) {
+  const bmp = getDavid();
+  if (!bmp) return;
+  const o = state.objects;
+  const baseY = horizonY() + 4;
+  const targetH = o.statueScale * H * 0.55;
+  const scale = targetH / bmp.height;
+  const dispW = bmp.width * scale;
+  const dispH = bmp.height * scale;
+  const cx = o.statueX * W;
+  const x = cx - dispW / 2;
+  const y = baseY - dispH;
+
+  c.save();
+  // Pedestal under David
+  c.fillStyle = '#0a0014';
+  c.fillRect(x - 12, baseY - 4, dispW + 24, 16);
+  c.fillStyle = '#2d004d';
+  c.fillRect(x - 8, baseY - 1, dispW + 16, 4);
+
+  // Chunky pixel render — no smoothing
+  c.imageSmoothingEnabled = false;
+  c.drawImage(bmp, x, y, dispW, dispH);
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// KANJI / random characters (drawn with canvas text)
+//-------------------------------------------------------------------------
+const KANJI_POOL = ['美','夢','空','光','水','風','音','心','時','未','来','愛','宇','宙','星','月','花','雪','闇','幻','想','虚','無','電','波','現','実'];
+function drawKanji(c) {
+  const o = state.objects;
+  const r = mulberry32(state.mountains.seed ^ 0x4321);
+  const count = o.kanjiCount;
+  c.save();
+  c.fillStyle = o.kanjiColor;
+  c.shadowColor = o.kanjiColor;
+  c.shadowBlur = 18;
+  for (let i = 0; i < count; i++) {
+    const ch = KANJI_POOL[Math.floor(r() * KANJI_POOL.length)];
+    const size = (60 + r() * 120) * o.kanjiScale;
+    const x = 60 + r() * (W - 120);
+    const y = 90 + r() * (horizonY() - 100);
+    c.font = `bold ${size}px "MS Mincho", "Hiragino Mincho ProN", serif`;
+    c.globalAlpha = 0.55 + r() * 0.35;
+    c.fillText(ch, x, y);
+  }
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// 80s BITMAP SPRITES (pixel art silhouettes)
+//-------------------------------------------------------------------------
+const SPRITES = {
+  cassette: [
+    '################',
+    '#..............#',
+    '#.############.#',
+    '#.#..........#.#',
+    '#.#.##....##.#.#',
+    '#.#.##....##.#.#',
+    '#.#..........#.#',
+    '#.############.#',
+    '#..............#',
+    '################',
+    '..##........##..',
+    '..##........##..',
+  ],
+  floppy: [
+    '..############..',
+    '..#..........##.',
+    '..#.######...##.',
+    '..#.##....#..##.',
+    '..#.##....#..##.',
+    '..#.##....#..##.',
+    '..#.######...##.',
+    '..#..........##.',
+    '..#..........##.',
+    '..#...####...##.',
+    '..#..######..##.',
+    '..#..######..##.',
+    '..#..######..##.',
+    '..############..',
+  ],
+  vhs: [
+    '##################',
+    '#................#',
+    '#.####........####',
+    '#.#..#........#..#',
+    '#.####........####',
+    '#................#',
+    '#.####........####',
+    '#.#..#........#..#',
+    '#.####........####',
+    '#................#',
+    '##################',
+  ],
+  classicMac: [
+    '..############..',
+    '..#..........#..',
+    '..#.########.#..',
+    '..#.#......#.#..',
+    '..#.#......#.#..',
+    '..#.#......#.#..',
+    '..#.#......#.#..',
+    '..#.########.#..',
+    '..#..........#..',
+    '..#..####.##.#..',
+    '..############..',
+    '..#..........#..',
+    '..############..',
+  ],
+  boombox: [
+    '..####################..',
+    '.######################.',
+    '.##.###..#####...###..#.',
+    '.##.#.#..#####...#.#..#.',
+    '.##.###..#####...###..#.',
+    '.######################.',
+    '.##.#####...####...##.#.',
+    '.##.#...#...#..#...##.#.',
+    '.##.#.#.#...#.##...##.#.',
+    '.##.#...#...#..#...##.#.',
+    '.##.#####...####...##.#.',
+    '.######################.',
+  ],
+  controller: [
+    '.####################',
+    '###..####.....####..#',
+    '##.##.##........###.#',
+    '##.####....##....##.#',
+    '##........####...##.#',
+    '##.####....##....##.#',
+    '##.##.##........###.#',
+    '###..####.....####..#',
+    '.####################',
+  ],
+  lightning: [
+    '.....####',
+    '....####.',
+    '...####..',
+    '..####...',
+    '.######..',
+    '########.',
+    '....####.',
+    '...####..',
+    '..####...',
+    '.####....',
+    '####.....',
+    '##.......',
+  ],
+  pyramid: [
+    '......##......',
+    '.....####.....',
+    '....##..##....',
+    '...##....##...',
+    '..##......##..',
+    '.##........##.',
+    '##..........##',
+    '##############',
+    '##############',
+    '###.......####',
+    '###.......####',
+  ],
+  saturn: [
+    '.....######.....',
+    '...##......##...',
+    '..#..........#..',
+    '.##....##....##.',
+    '##....####....##',
+    '##....####....##',
+    '##############..',
+    '################',
+    '##############..',
+    '##....####....##',
+    '##....####....##',
+    '.##....##....##.',
+    '..#..........#..',
+    '...##......##...',
+    '.....######.....',
+  ],
+  car: [
+    '...########........',
+    '..####....######...',
+    '.##..######....##..',
+    '#####################',
+    '#####################',
+    '..##............##.',
+    '.####..........####',
+    '.####..........####',
+    '..##............##.',
+  ],
+  diamond: [
+    '.....####....',
+    '....######...',
+    '...########..',
+    '..##########.',
+    '.############',
+    '.############',
+    '..##########.',
+    '...########..',
+    '....######...',
+    '.....####....',
+    '......##.....',
+  ],
+  walkman: [
+    '#################',
+    '#...............#',
+    '#.#####...#####.#',
+    '#.##..#...#..##.#',
+    '#.##..#...#..##.#',
+    '#.#####...#####.#',
+    '#...............#',
+    '#.#............##',
+    '#.##....######..#',
+    '#...............#',
+    '#################',
+  ],
+  satellite: [
+    '..####....####..',
+    '..####....####..',
+    '..####....####..',
+    '.....######.....',
+    '....########....',
+    '...##########...',
+    '...##########...',
+    '....########....',
+    '.....######.....',
+    '..####....####..',
+    '..####....####..',
+    '..####....####..',
+  ],
+};
+const SPRITE_NAMES = Object.keys(SPRITES);
+
+function drawSprite(c, sprite, x, y, scale, color, glow) {
+  c.save();
+  if (glow > 0) { c.shadowColor = color; c.shadowBlur = glow * 14; }
+  c.fillStyle = color;
+  for (let row = 0; row < sprite.length; row++) {
+    const line = sprite[row];
+    for (let col = 0; col < line.length; col++) {
+      if (line[col] === '#') {
+        c.fillRect(
+          Math.round(x + col * scale),
+          Math.round(y + row * scale),
+          Math.ceil(scale),
+          Math.ceil(scale)
+        );
+      }
+    }
+  }
+  c.restore();
+}
+
+function drawBitmaps(c) {
+  const o = state.objects;
+  const r = mulberry32(state.mountains.seed ^ 0xB17ABE);
+  for (let i = 0; i < o.bitmapCount; i++) {
+    const name = SPRITE_NAMES[Math.floor(r() * SPRITE_NAMES.length)];
+    const sprite = SPRITES[name];
+    const px = (0.05 + r() * 0.9) * W;
+    const py = 30 + r() * (horizonY() - 80);
+    const scale = (2 + r() * 4) * o.bitmapScale;
+    const w = sprite[0].length * scale;
+    const h = sprite.length * scale;
+    drawSprite(c, sprite, px - w / 2, py - h / 2, scale, o.bitmapColor, 0.4 + r() * 0.4);
+  }
+}
+
+//-------------------------------------------------------------------------
+// SUN RAYS (radiating beams from the sun)
+//-------------------------------------------------------------------------
+function drawSunRays(c) {
+  const o = state.objects;
+  const cx = state.sun.x * W;
+  const cy = state.sun.y * H;
+  const rad = state.sun.radius * H;
+  const count = o.rayCount;
+  const len = o.rayLength * H * 1.2;
+  const width = (Math.PI * 2 / count) * o.rayWidth;
+
+  c.save();
+  c.globalCompositeOperation = 'screen';
+  c.fillStyle = hexA(state.sun.colorTop, 0.18);
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    c.beginPath();
+    c.moveTo(cx + Math.cos(a - width / 2) * rad, cy + Math.sin(a - width / 2) * rad);
+    c.lineTo(cx + Math.cos(a + width / 2) * rad, cy + Math.sin(a + width / 2) * rad);
+    c.lineTo(cx + Math.cos(a + width / 2) * (rad + len), cy + Math.sin(a + width / 2) * (rad + len));
+    c.lineTo(cx + Math.cos(a - width / 2) * (rad + len), cy + Math.sin(a - width / 2) * (rad + len));
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+}
+
+//-------------------------------------------------------------------------
+// COLOR HELPERS
+//-------------------------------------------------------------------------
+function lighten(hex, amt) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.min(255, r + 255 * amt) | 0},${Math.min(255, g + 255 * amt) | 0},${Math.min(255, b + 255 * amt) | 0})`;
+}
+function darken(hex, amt) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.max(0, r - 255 * amt) | 0},${Math.max(0, g - 255 * amt) | 0},${Math.max(0, b - 255 * amt) | 0})`;
+}
+
+//=========================================================================
+// FX
+//=========================================================================
+function applyChromatic(srcCanvas, destCtx) {
+  const amount = state.fx.chromatic;
+  if (amount < 0.01) {
+    destCtx.clearRect(0, 0, W, H);
+    destCtx.drawImage(srcCanvas, 0, 0);
+    return;
+  }
+  const offset = Math.round(amount * 10);
+  const src = srcCanvas.getContext('2d').getImageData(0, 0, W, H);
+  const out = destCtx.createImageData(W, H);
+  const s = src.data, o = out.data;
+  for (let y = 0; y < H; y++) {
+    const rowBase = y * W * 4;
+    for (let x = 0; x < W; x++) {
+      const xR = x - offset; const xB = x + offset;
+      const iR = (xR < 0 ? 0 : xR >= W ? W - 1 : xR);
+      const iB = (xB < 0 ? 0 : xB >= W ? W - 1 : xB);
+      const i = rowBase + x * 4;
+      o[i]     = s[rowBase + iR * 4];     // R
+      o[i + 1] = s[rowBase + x * 4 + 1];  // G
+      o[i + 2] = s[rowBase + iB * 4 + 2]; // B
+      o[i + 3] = 255;
+    }
+  }
+  destCtx.putImageData(out, 0, 0);
+}
+
+function applyGlitch(c) {
+  const amt = state.fx.glitch;
+  if (amt < 0.01) return;
+  const slices = Math.floor(amt * 14) + 1;
+  for (let i = 0; i < slices; i++) {
+    if (Math.random() > 0.65) continue;
+    const sy = Math.floor(Math.random() * H);
+    const sh = Math.floor(Math.random() * 22) + 3;
+    const dx = (Math.random() - 0.5) * amt * 140;
+    if (sy + sh > H) continue;
+    const img = c.getImageData(0, sy, W, sh);
+    c.clearRect(0, sy, W, sh);
+    c.putImageData(img, dx, sy);
+    // Fill the gap left behind
+    if (dx > 0) {
+      const edge = c.getImageData(0, sy, 2, sh);
+      // (leave as-is; works fine visually)
+    }
+  }
+}
+
+function applyScanlines(c) {
+  const amt = state.fx.scanlines;
+  if (amt < 0.01) return;
+  c.save();
+  c.globalAlpha = amt * 0.45;
+  c.fillStyle = '#000';
+  for (let y = 0; y < H; y += 3) {
+    c.fillRect(0, y, W, 1);
+  }
+  c.restore();
+}
+
+function applyGrain(c) {
+  const amt = state.fx.grain;
+  if (amt < 0.01) return;
+  const img = c.getImageData(0, 0, W, H);
+  const d = img.data;
+  const strength = amt * 60;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * strength;
+    d[i]   = clamp255(d[i] + n);
+    d[i+1] = clamp255(d[i+1] + n);
+    d[i+2] = clamp255(d[i+2] + n);
+  }
+  c.putImageData(img, 0, 0);
+}
+
+function applyVignette(c) {
+  const amt = state.fx.vignette;
+  if (amt < 0.01) return;
+  const g = c.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.35, W/2, H/2, Math.max(W,H) * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, `rgba(0,0,0,${(amt * 0.85).toFixed(3)})`);
+  c.fillStyle = g;
+  c.fillRect(0, 0, W, H);
+}
+
+//=========================================================================
+// STATIC :: OVERLAYS
+//=========================================================================
+const fxBuf = document.createElement('canvas');
+fxBuf.width = W; fxBuf.height = H;
+const fxBufCtx = fxBuf.getContext('2d', { willReadFrequently: true });
+
+function applyTVStatic(c) {
+  const amt = state.static.tvStatic;
+  if (amt < 0.01) return;
+  const img = c.getImageData(0, 0, W, H);
+  const d = img.data;
+  const dose = amt * 0.55;
+  for (let i = 0; i < d.length; i += 4) {
+    if (Math.random() < dose) {
+      const n = (Math.random() * 255) | 0;
+      d[i] = n; d[i+1] = n; d[i+2] = n;
+    }
+  }
+  c.putImageData(img, 0, 0);
+}
+
+function applyRGBGhost(c) {
+  const amt = state.static.rgbGhost;
+  if (amt < 0.01) return;
+  fxBufCtx.clearRect(0, 0, W, H);
+  fxBufCtx.drawImage(c.canvas, 0, 0);
+  c.save();
+  c.globalAlpha = amt * 0.55;
+  c.globalCompositeOperation = 'screen';
+  const off = Math.round(amt * 24);
+  c.drawImage(fxBuf, off, -2);
+  c.drawImage(fxBuf, -off, 2);
+  c.restore();
+}
+
+function applyWaveWarp(c) {
+  const amt = state.static.waveWarp;
+  if (amt < 0.01) return;
+  fxBufCtx.clearRect(0, 0, W, H);
+  fxBufCtx.drawImage(c.canvas, 0, 0);
+  c.clearRect(0, 0, W, H);
+  const amp = amt * 28;
+  const t = state.static.animate ? Date.now() * 0.001 : 0;
+  const step = 4;
+  for (let y = 0; y < H; y += step) {
+    const dx = Math.sin(y * 0.04 + t * 1.4) * amp + Math.sin(y * 0.013 + t * 0.7) * amp * 0.4;
+    c.drawImage(fxBuf, 0, y, W, step, dx, y, W, step);
+  }
+}
+
+function applyHueShift(c) {
+  const amt = state.static.hueShift;
+  if (amt < 0.01) return;
+  fxBufCtx.clearRect(0, 0, W, H);
+  fxBufCtx.drawImage(c.canvas, 0, 0);
+  c.save();
+  c.filter = `hue-rotate(${(amt * 360).toFixed(1)}deg)`;
+  c.drawImage(fxBuf, 0, 0);
+  c.restore();
+}
+
+function applyPosterize(c) {
+  const amt = state.static.posterize;
+  if (amt < 0.01) return;
+  const levels = Math.max(2, Math.round(16 - amt * 14));
+  const img = c.getImageData(0, 0, W, H);
+  const d = img.data;
+  const step = 255 / (levels - 1);
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]   = Math.round(d[i]   / step) * step;
+    d[i+1] = Math.round(d[i+1] / step) * step;
+    d[i+2] = Math.round(d[i+2] / step) * step;
+  }
+  c.putImageData(img, 0, 0);
+}
+
+function applyBadBlocks(c) {
+  const amt = state.static.badBlocks;
+  if (amt < 0.01) return;
+  const count = Math.floor(amt * 10) + 1;
+  c.save();
+  for (let i = 0; i < count; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const w = (20 + Math.random() * 200) * amt;
+    const h = (3 + Math.random() * 28);
+    const r = Math.random();
+    c.fillStyle = r < 0.45 ? '#000' :
+                  r < 0.75 ? '#ff00ff' :
+                  r < 0.92 ? '#00f0ff' : '#0a0014';
+    c.fillRect(x, y, w, h);
+  }
+  c.restore();
+}
+
+function applyTapeBands(c) {
+  const amt = state.static.tapeBands;
+  if (amt < 0.01) return;
+  const count = Math.floor(amt * 7) + 1;
+  c.save();
+  c.globalCompositeOperation = 'screen';
+  for (let i = 0; i < count; i++) {
+    const y = Math.random() * H;
+    const h = 2 + Math.random() * 10;
+    const hue = (Math.random() * 360) | 0;
+    c.fillStyle = `hsla(${hue}, 100%, 60%, ${(amt * 0.5).toFixed(2)})`;
+    c.fillRect(0, y, W, h);
+  }
+  c.restore();
+}
+
+function applyInvertPulse(c) {
+  const amt = state.static.invertPulse;
+  if (amt < 0.01) return;
+  const slabs = Math.floor(amt * 4) + 1;
+  c.save();
+  c.globalCompositeOperation = 'difference';
+  c.fillStyle = '#fff';
+  for (let i = 0; i < slabs; i++) {
+    const y = Math.random() * H;
+    const h = (10 + Math.random() * 80) * amt;
+    c.fillRect(0, y, W, h);
+  }
+  c.restore();
+}
+
+function applyTextOverlay(c) {
+  const s = state.static;
+  if (!s.recBadge && !s.vhsCounter && !s.hexMarquee) return;
+  c.save();
+  c.font = 'bold 28px "VT323", "Silkscreen", monospace';
+
+  if (s.recBadge) {
+    const blink = s.animate ? (Math.floor(Date.now() / 600) % 2) : 1;
+    if (blink) {
+      c.fillStyle = '#ff003c';
+      c.beginPath(); c.arc(40, 38, 10, 0, Math.PI * 2); c.fill();
+    }
+    c.fillStyle = '#fff';
+    c.fillText('REC', 60, 48);
+  }
+
+  if (s.vhsCounter) {
+    const totalSec = s.animate ? Math.floor(Date.now() / 1000) % 36000 : 1487;
+    const hh = Math.floor(totalSec / 3600);
+    const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
+    const ss = (totalSec % 60).toString().padStart(2, '0');
+    c.fillStyle = '#fff';
+    c.fillText(`SP  ${hh.toString().padStart(2,'0')}:${mm}:${ss}`, 28, H - 28);
+  }
+
+  if (s.hexMarquee) {
+    const hex = 'DEAD BEEF C0FFEE BAD F00D CAFE BABE 1337 FACE FEED ';
+    const repeat = hex + hex + hex + hex;
+    c.font = '20px "VT323", monospace';
+    c.fillStyle = 'rgba(255,45,149,0.85)';
+    const offset = s.animate ? -((Date.now() * 0.06) % 200) : 0;
+    c.fillText(repeat, offset, H - 10);
+  }
+
+  c.restore();
+}
+
+//=========================================================================
+// ANDROID :: HUD  (matrix rain, ASCII mode, reticle, polygons,
+//                  telemetry, rolling band, scan sweep, anaglyph 3D)
+//=========================================================================
+const MATRIX_CHARSETS = {
+  kana:    'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ',
+  binary:  '01',
+  hex:     '0123456789ABCDEF',
+  wetware: 'WETWARE.SYS美夢空光水風音心><=#@%&',
+  symbols: '◆◇○●□■△▲▽▼☆★♀♂※†‡§¶∞∆∇∂∫√≠≈',
+};
+
+const matrixBuf = document.createElement('canvas');
+matrixBuf.width = W; matrixBuf.height = H;
+const matrixCtx = matrixBuf.getContext('2d');
+let matrixDrops = [];
+let matrixLastT = 0;
+
+function applyMatrixRain(c) {
+  const amt = state.android.matrix;
+  if (amt < 0.01) return;
+  const cellSize = 14;
+  const cols = Math.floor(W / cellSize);
+  if (matrixDrops.length !== cols) {
+    matrixDrops = new Array(cols).fill(0).map(() => Math.random() * H);
+  }
+  // Fade for trail
+  matrixCtx.fillStyle = 'rgba(0,0,0,0.10)';
+  matrixCtx.fillRect(0, 0, W, H);
+  matrixCtx.font = `${cellSize}px "VT323", "Courier New", monospace`;
+
+  const chars = MATRIX_CHARSETS[state.android.matrixChars] || MATRIX_CHARSETS.kana;
+  const color = state.android.matrixColor;
+  const stepBase = cellSize * 1.4 * state.android.matrixSpeed;
+
+  for (let i = 0; i < cols; i++) {
+    if (Math.random() > amt * 0.6 + 0.4) {
+      // Always draw current head, even if column not advancing this frame
+    }
+    const x = i * cellSize;
+    const y = matrixDrops[i];
+    const ch = chars[Math.floor(Math.random() * chars.length)];
+    matrixCtx.fillStyle = color;
+    matrixCtx.fillText(ch, x, y);
+    // White-hot head occasionally
+    if (Math.random() < 0.08) {
+      matrixCtx.fillStyle = '#fff';
+      matrixCtx.fillText(ch, x, y);
+    }
+    matrixDrops[i] += stepBase * (0.6 + Math.random() * 0.8);
+    if (matrixDrops[i] > H && Math.random() < 0.025) {
+      matrixDrops[i] = -cellSize * Math.floor(Math.random() * 8);
+    }
+  }
+
+  c.save();
+  c.globalCompositeOperation = 'screen';
+  c.drawImage(matrixBuf, 0, 0);
+  c.restore();
+}
+
+function applyAnaglyph(c) {
+  const amt = state.android.anaglyph;
+  if (amt < 0.01) return;
+  const off = Math.round(amt * 14);
+  const img = c.getImageData(0, 0, W, H);
+  const out = c.createImageData(W, H);
+  const s = img.data, o = out.data;
+  for (let y = 0; y < H; y++) {
+    const rowBase = y * W * 4;
+    for (let x = 0; x < W; x++) {
+      const xR = x - off;
+      const xC = x + off;
+      const iR = (xR < 0 ? 0 : xR >= W ? W - 1 : xR);
+      const iC = (xC < 0 ? 0 : xC >= W ? W - 1 : xC);
+      const i = rowBase + x * 4;
+      o[i]     = s[rowBase + iR * 4];        // R
+      o[i + 1] = s[rowBase + iC * 4 + 1];    // G
+      o[i + 2] = s[rowBase + iC * 4 + 2];    // B
+      o[i + 3] = 255;
+    }
+  }
+  c.putImageData(out, 0, 0);
+}
+
+function applyRollingBand(c) {
+  const amt = state.android.rollingBand;
+  if (amt < 0.01) return;
+  const animating = state.static.animate;
+  const t = animating ? Date.now() * 0.0005 : 0.35;
+  const bandY = ((t * H) % (H + 120)) - 60;
+  const bandH = 60;
+  if (bandY <= -bandH || bandY >= H) return;
+  const top = Math.max(0, Math.floor(bandY));
+  const bot = Math.min(H, Math.floor(bandY + bandH));
+  if (bot <= top) return;
+  const h = bot - top;
+  fxBufCtx.clearRect(0, 0, W, H);
+  fxBufCtx.drawImage(c.canvas, 0, 0);
+  c.clearRect(0, top, W, h);
+  c.drawImage(fxBuf, 0, top, W, h, Math.round(34 * amt), top, W, h);
+  c.save();
+  c.fillStyle = `rgba(255,255,255,${0.18 * amt})`;
+  c.fillRect(0, top, W, 2);
+  c.fillRect(0, bot - 2, W, 2);
+  c.restore();
+}
+
+function applyPolygonOrbit(c) {
+  if (!state.android.polygons) return;
+  const cx = state.sun.x * W;
+  const cy = state.sun.y * H;
+  const rad = state.sun.radius * H;
+  const n = state.android.polyCount;
+  const sides = state.android.polySides;
+  const t = state.static.animate ? Date.now() * 0.0006 : 0.7;
+  c.save();
+  c.strokeStyle = state.android.matrixColor;
+  c.lineWidth = 1.2;
+  c.shadowColor = state.android.matrixColor;
+  c.shadowBlur = 6;
+  for (let i = 0; i < n; i++) {
+    const orbit = rad * (1.35 + i * 0.16);
+    const dir = i % 2 === 0 ? 1 : -1;
+    const angle = t * dir * (0.5 + i * 0.04);
+    const px = cx + Math.cos(angle) * orbit;
+    const py = cy + Math.sin(angle) * orbit * 0.42;
+    const size = 12 + (i % 4) * 5;
+    const rot = t * (i + 1) * 0.7;
+    c.beginPath();
+    for (let k = 0; k <= sides; k++) {
+      const a = rot + (k / sides) * Math.PI * 2;
+      const x = px + Math.cos(a) * size;
+      const y = py + Math.sin(a) * size;
+      if (k === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.stroke();
+  }
+  c.restore();
+}
+
+function applyReticle(c) {
+  if (!state.android.reticle) return;
+  const cx = state.sun.x * W;
+  const cy = state.sun.y * H;
+  const rad = state.sun.radius * H;
+  const off = rad + 16;
+  const len = 22;
+  const color = state.android.matrixColor;
+  c.save();
+  c.strokeStyle = color;
+  c.fillStyle = color;
+  c.lineWidth = 2;
+  c.shadowColor = color;
+  c.shadowBlur = 4;
+
+  // Corner brackets
+  const brackets = [
+    [cx - off, cy - off,  1,  1],
+    [cx + off, cy - off, -1,  1],
+    [cx - off, cy + off,  1, -1],
+    [cx + off, cy + off, -1, -1],
+  ];
+  for (const [x, y, dx, dy] of brackets) {
+    c.beginPath();
+    c.moveTo(x + dx * len, y);
+    c.lineTo(x, y);
+    c.lineTo(x, y + dy * len);
+    c.stroke();
+  }
+  // Center crosshair
+  c.beginPath();
+  c.moveTo(cx - 7, cy); c.lineTo(cx + 7, cy);
+  c.moveTo(cx, cy - 7); c.lineTo(cx, cy + 7);
+  c.stroke();
+
+  // Diagonal tick marks
+  c.lineWidth = 1;
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    const r1 = rad + 28, r2 = rad + 38;
+    c.beginPath();
+    c.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+    c.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+    c.stroke();
+  }
+
+  // Readouts
+  c.font = '14px "VT323", monospace';
+  c.fillText(`TGT::LOCK`, cx + off + 10, cy - off + 12);
+  c.fillText(`R:${rad.toFixed(0)}`,   cx + off + 10, cy - off + 28);
+  c.fillText(`AZ:${(state.sun.x * 360).toFixed(1)}°`, cx + off + 10, cy - off + 44);
+  c.restore();
+}
+
+function applyScanSweep(c) {
+  if (!state.android.scanSweep) return;
+  const animating = state.static.animate;
+  const t = animating ? Date.now() * 0.0015 : 0.3;
+  const sweepY = (Math.sin(t) * 0.5 + 0.5) * H;
+  const color = state.android.matrixColor;
+  c.save();
+  c.fillStyle = color;
+  c.globalAlpha = 0.6;
+  c.fillRect(0, sweepY - 1, W, 2);
+  const grad = c.createLinearGradient(0, sweepY, 0, sweepY + 90);
+  grad.addColorStop(0, hexA(color, 0.35));
+  grad.addColorStop(1, hexA(color, 0));
+  c.fillStyle = grad;
+  c.fillRect(0, sweepY, W, 90);
+  c.restore();
+}
+
+function applyTelemetryHUD(c) {
+  if (!state.android.telemetry) return;
+  const color = state.android.matrixColor;
+  const r = mulberry32(state.mountains.seed ^ 0xC1A0);
+  const psi = (r() * 9.99).toFixed(2);
+  const hdg = Math.floor(r() * 360).toString().padStart(3, '0');
+  const alt = (r() * 9999).toFixed(0).padStart(4, '0');
+  const tmp = (60 + r() * 30).toFixed(1);
+  const sig = Math.floor(r() * 100);
+  const ts = state.static.animate
+    ? new Date().toISOString().slice(11, 19)
+    : '04:20:69';
+
+  c.save();
+  c.font = '18px "VT323", monospace';
+  c.fillStyle = color;
+  c.shadowColor = color;
+  c.shadowBlur = 3;
+  // Top-left
+  c.fillText('> WETWARE.OS // wake_state=DREAM', 16, 36);
+  c.fillText(`> SIG:${sig}%  TMP:${tmp}°C  RX:HOT`, 16, 56);
+  // Top-right
+  const tr = [`SYS::OK`, `PWR:88%`, `HDG:${hdg}°`, `PSI:${psi}`];
+  for (let i = 0; i < tr.length; i++) {
+    c.fillText(tr[i], W - 170, 36 + i * 20);
+  }
+  // Bottom-left
+  c.fillText(`ALT:${alt}m   T:${ts}`, 16, H - 40);
+  // Bottom-right
+  c.fillText('// VAPORWAVE.BAS', W - 200, H - 40);
+  // Corner reticles
+  c.strokeStyle = color;
+  c.lineWidth = 1.5;
+  const corner = 24;
+  const cornerOff = 12;
+  const drawCorner = (x, y, dx, dy) => {
+    c.beginPath();
+    c.moveTo(x + dx * corner, y);
+    c.lineTo(x, y);
+    c.lineTo(x, y + dy * corner);
+    c.stroke();
+  };
+  drawCorner(cornerOff, cornerOff, 1, 1);
+  drawCorner(W - cornerOff, cornerOff, -1, 1);
+  drawCorner(cornerOff, H - cornerOff, 1, -1);
+  drawCorner(W - cornerOff, H - cornerOff, -1, -1);
+  c.restore();
+}
+
+function applyAsciiMode(c) {
+  if (!state.android.ascii) return;
+  const cell = state.android.asciiSize;
+  const ramp = '  .\'`,:_-+=*#%@';
+  const data = c.getImageData(0, 0, W, H).data;
+  c.fillStyle = '#000';
+  c.fillRect(0, 0, W, H);
+  c.font = `bold ${cell}px "VT323", "Silkscreen", monospace`;
+  c.textBaseline = 'top';
+  for (let y = 0; y < H; y += cell) {
+    for (let x = 0; x < W; x += cell) {
+      const i = ((y | 0) * W + (x | 0)) * 4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      const lum = (r + g + b) / 3;
+      const idx = Math.min(ramp.length - 1, Math.floor(lum / 255 * (ramp.length - 1)));
+      const ch = ramp[idx];
+      if (ch === ' ') continue;
+      c.fillStyle = `rgb(${r},${g},${b})`;
+      c.fillText(ch, x, y);
+    }
+  }
+}
+
+//=========================================================================
+// UTIL
+//=========================================================================
+function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+
+function hexToRgb(hex) {
+  const h = hex.replace('#','');
+  return {
+    r: parseInt(h.substring(0,2), 16),
+    g: parseInt(h.substring(2,4), 16),
+    b: parseInt(h.substring(4,6), 16),
+  };
+}
+function hexA(hex, a) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function mixColor(hexA_, hexB, t) {
+  const a = hexToRgb(hexA_), b = hexToRgb(hexB);
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+//=========================================================================
+// SOUND :: weird ambient vibes via Web Audio
+//=========================================================================
+const Sound = (() => {
+  let ctx = null;
+  let nodes = null; // bag of nodes when running
+  let running = false;
+  let lfoFreqVal = 0.2; // smooth handoff value
+
+  function ensureCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  function makeReverbImpulse(ac, duration, decay) {
+    const rate = ac.sampleRate;
+    const len = rate * duration;
+    const ir = ac.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return ir;
+  }
+
+  function makeNoiseBuffer(ac, seconds) {
+    const len = ac.sampleRate * seconds;
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  function start() {
+    if (running) return;
+    const ac = ensureCtx();
+    if (ac.state === 'suspended') ac.resume();
+    const s = state.sound;
+
+    const master = ac.createGain();
+    master.gain.value = s.masterVol;
+
+    const lpf = ac.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = 200 + s.lpfCutoff * 6000;
+    lpf.Q.value = 1.2;
+
+    const wetGain = ac.createGain();
+    wetGain.gain.value = s.reverb;
+    const dryGain = ac.createGain();
+    dryGain.gain.value = 1 - s.reverb * 0.5;
+    const conv = ac.createConvolver();
+    conv.buffer = makeReverbImpulse(ac, 4.5, 2.5);
+
+    // Bus: sources -> lpf -> (dry + (wet -> conv)) -> master -> destination
+    lpf.connect(dryGain);
+    lpf.connect(conv);
+    conv.connect(wetGain);
+    dryGain.connect(master);
+    wetGain.connect(master);
+    master.connect(ac.destination);
+
+    // --- Drone: 2 detuned sawtooths + sub sine ---
+    const droneA = ac.createOscillator();
+    const droneB = ac.createOscillator();
+    const sub    = ac.createOscillator();
+    droneA.type = 'sawtooth';
+    droneB.type = 'sawtooth';
+    sub.type = 'sine';
+    droneA.frequency.value = s.droneFreq;
+    droneB.frequency.value = s.droneFreq;
+    droneB.detune.value = s.droneDetune;
+    sub.frequency.value = s.droneFreq / 2;
+
+    const droneGain = ac.createGain();
+    droneGain.gain.value = 0.35;
+    droneA.connect(droneGain);
+    droneB.connect(droneGain);
+    const subGain = ac.createGain();
+    subGain.gain.value = 0.3;
+    sub.connect(subGain);
+    droneGain.connect(lpf);
+    subGain.connect(lpf);
+
+    // --- LFO modulating LPF cutoff ---
+    const lfo = ac.createOscillator();
+    const lfoGain = ac.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = s.lfoRate;
+    lfoGain.gain.value = 800;
+    lfo.connect(lfoGain);
+    lfoGain.connect(lpf.frequency);
+
+    // --- Pad shimmer: noise -> bandpass with slow chirp ---
+    const noiseBuf = makeNoiseBuffer(ac, 4);
+    const padSrc = ac.createBufferSource();
+    padSrc.buffer = noiseBuf; padSrc.loop = true;
+    const padBP = ac.createBiquadFilter();
+    padBP.type = 'bandpass';
+    padBP.frequency.value = 1800;
+    padBP.Q.value = 5;
+    const padGain = ac.createGain();
+    padGain.gain.value = s.padShimmer * 0.18;
+    padSrc.connect(padBP);
+    padBP.connect(padGain);
+    padGain.connect(lpf);
+    // Slow chirp on the bandpass
+    const padLfo = ac.createOscillator();
+    const padLfoGain = ac.createGain();
+    padLfo.type = 'sine';
+    padLfo.frequency.value = 0.07;
+    padLfoGain.gain.value = 600;
+    padLfo.connect(padLfoGain);
+    padLfoGain.connect(padBP.frequency);
+
+    // --- Vinyl crackle: noise -> highpass, gated by random impulses via gain ramps ---
+    const crackleSrc = ac.createBufferSource();
+    crackleSrc.buffer = makeNoiseBuffer(ac, 4);
+    crackleSrc.loop = true;
+    const crackleHP = ac.createBiquadFilter();
+    crackleHP.type = 'highpass';
+    crackleHP.frequency.value = 2200;
+    const crackleGain = ac.createGain();
+    crackleGain.gain.value = s.crackle * 0.18;
+    crackleSrc.connect(crackleHP);
+    crackleHP.connect(crackleGain);
+    crackleGain.connect(master); // bypass reverb for crisper crackles
+
+    // --- Rain: noise -> lowpass ---
+    const rainSrc = ac.createBufferSource();
+    rainSrc.buffer = makeNoiseBuffer(ac, 4);
+    rainSrc.loop = true;
+    const rainLP = ac.createBiquadFilter();
+    rainLP.type = 'lowpass';
+    rainLP.frequency.value = 1400;
+    const rainGain = ac.createGain();
+    rainGain.gain.value = s.rain * 0.25;
+    rainSrc.connect(rainLP);
+    rainLP.connect(rainGain);
+    rainGain.connect(lpf);
+
+    // Start all
+    const t = ac.currentTime + 0.05;
+    droneA.start(t); droneB.start(t); sub.start(t);
+    lfo.start(t); padSrc.start(t); padLfo.start(t);
+    crackleSrc.start(t); rainSrc.start(t);
+
+    // Fade in
+    master.gain.setValueAtTime(0, ac.currentTime);
+    master.gain.linearRampToValueAtTime(s.masterVol, ac.currentTime + 1.2);
+
+    nodes = {
+      master, lpf, dryGain, wetGain,
+      droneA, droneB, sub, droneGain, subGain,
+      lfo, lfoGain, padSrc, padBP, padGain, padLfo, padLfoGain,
+      crackleSrc, crackleHP, crackleGain,
+      rainSrc, rainLP, rainGain,
+    };
+    running = true;
+  }
+
+  function stop() {
+    if (!running || !nodes) return;
+    const ac = ctx;
+    const now = ac.currentTime;
+    nodes.master.gain.cancelScheduledValues(now);
+    nodes.master.gain.linearRampToValueAtTime(0, now + 0.4);
+    const n = nodes;
+    setTimeout(() => {
+      try {
+        ['droneA','droneB','sub','lfo','padSrc','padLfo','crackleSrc','rainSrc'].forEach(k => n[k].stop());
+      } catch (_) {}
+    }, 500);
+    nodes = null;
+    running = false;
+  }
+
+  function update() {
+    if (!running || !nodes) return;
+    const s = state.sound;
+    const t = ctx.currentTime;
+    const ramp = (param, v) => param.setTargetAtTime(v, t, 0.05);
+    ramp(nodes.master.gain, s.masterVol);
+    ramp(nodes.droneA.frequency, s.droneFreq);
+    ramp(nodes.droneB.frequency, s.droneFreq);
+    nodes.droneB.detune.setTargetAtTime(s.droneDetune, t, 0.05);
+    ramp(nodes.sub.frequency, s.droneFreq / 2);
+    ramp(nodes.lpf.frequency, 200 + s.lpfCutoff * 6000);
+    ramp(nodes.lfo.frequency, s.lfoRate);
+    ramp(nodes.padGain.gain, s.padShimmer * 0.18);
+    ramp(nodes.crackleGain.gain, s.crackle * 0.18);
+    ramp(nodes.rainGain.gain, s.rain * 0.25);
+    ramp(nodes.wetGain.gain, s.reverb);
+    ramp(nodes.dryGain.gain, 1 - s.reverb * 0.5);
+  }
+
+  return { start, stop, update, get running() { return running; } };
+})();
+
+//=========================================================================
+// EXPORT
+//=========================================================================
+function exportPNG() {
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wetware-vaporwave-${Date.now()}.png`;
+  a.click();
+}
+
+//=========================================================================
+// BOOT
+//=========================================================================
+buildUI();
+document.getElementById('preset').value = 'Miami Vice';
+applyPreset('Miami Vice');
+document.getElementById('randomize').addEventListener('click', randomize);
+document.getElementById('export').addEventListener('click', exportPNG);
+document.getElementById('sound-play').addEventListener('click', () => {
+  Sound.start();
+  document.getElementById('snd-status').textContent = 'PLAYING';
+});
+document.getElementById('sound-stop').addEventListener('click', () => {
+  Sound.stop();
+  document.getElementById('snd-status').textContent = 'STANDBY';
+});
+document.getElementById('preset').addEventListener('change', e => {
+  document.getElementById('stage-preset').textContent = e.target.value;
+});
+syncUIFromState();
+render();
+
+// === STATUS BAR LIVE UPDATES ===
+function pad2(n) { return n.toString().padStart(2, '0'); }
+function updateClock() {
+  const d = new Date();
+  let h = d.getHours();
+  const m = pad2(d.getMinutes());
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  document.getElementById('clock').textContent = `${h}:${m} ${ampm}`;
+}
+updateClock();
+setInterval(updateClock, 30 * 1000);
+
+// Active FX summary in stage bottom bar
+function refreshFxStatus() {
+  const labels = {
+    chromatic: 'CHROMA', scanlines: 'SCAN', grain: 'GRAIN',
+    glitch: 'GLITCH', vignette: 'VIGNETTE',
+  };
+  const statics = {
+    tvStatic: 'STATIC', rgbGhost: 'GHOST', waveWarp: 'WARP',
+    hueShift: 'HUE', posterize: 'POSTER', badBlocks: 'BLOCK',
+    tapeBands: 'BAND', invertPulse: 'INVERT',
+  };
+  const droids = {
+    matrix: 'RAIN', rollingBand: 'ROLL', anaglyph: 'ANAGLYPH',
+  };
+  const a = state.android;
+  const droidFlags = [
+    a.ascii && 'ASCII', a.reticle && 'TGT', a.polygons && 'POLY',
+    a.telemetry && 'TLM', a.scanSweep && 'SWEEP',
+  ].filter(Boolean);
+  const active = [
+    ...Object.keys(labels).filter(k => state.fx[k] > 0.05).map(k => labels[k]),
+    ...Object.keys(statics).filter(k => state.static[k] > 0.05).map(k => statics[k]),
+    ...Object.keys(droids).filter(k => state.android[k] > 0.05).map(k => droids[k]),
+    ...droidFlags,
+  ];
+  document.getElementById('stage-fx').textContent = active.length
+    ? active.join(' / ')
+    : 'CLEAN SIGNAL';
+  const sBar = document.getElementById('static-status');
+  if (sBar) {
+    const sCnt = Object.keys(statics).filter(k => state.static[k] > 0.05).length;
+    sBar.textContent = state.static.animate ? `LIVE x${sCnt}` : (sCnt > 0 ? `${sCnt} ACTIVE` : 'DRY');
+  }
+  const aBar = document.getElementById('android-status');
+  if (aBar) {
+    const aCnt = Object.keys(droids).filter(k => state.android[k] > 0.05).length + droidFlags.length;
+    aBar.textContent = aCnt > 0 ? `${aCnt} ONLINE` : 'DORMANT';
+  }
+}
+const origRequestRender = requestRender;
+requestRender = function() {
+  refreshFxStatus();
+  if (needsAnimation()) startAnimLoop();
+  origRequestRender();
+};
+refreshFxStatus();
+
+// === BOOT INTRO ===
+(function bootIntro() {
+  const lines = [
+    'WETWARE.OS  v7.5.3',
+    'Copyright (c) 1989-2026 wetware.sys',
+    '',
+    '> POST                                    ........ [OK]',
+    '> Mounting /dev/dreams                    ........ [OK]',
+    '> Calibrating chrominance LUT             ........ [OK]',
+    '> Loading sprite pool [13 entries]        ........ [OK]',
+    '> Bayer-dithering David @ 70px            ........ [OK]',
+    '> Detuning oscillators                    ........ [OK]',
+    '> Spawning katakana entropy               ........ [OK]',
+    '> Targeting reticle: standby              ........ [OK]',
+    '> RUNTIME ACTIVE',
+    '',
+    '> RUN VAPORWAVE.BAS',
+  ];
+  const el = document.getElementById('boot-text');
+  if (!el) return;
+  let i = 0;
+  const tick = () => {
+    if (i >= lines.length) {
+      setTimeout(() => {
+        const boot = document.getElementById('boot');
+        if (boot) {
+          boot.classList.add('fading');
+          setTimeout(() => boot.remove(), 1300);
+        }
+      }, 600);
+      return;
+    }
+    el.textContent += lines[i] + '\n';
+    i++;
+    setTimeout(tick, 75 + Math.random() * 60);
+  };
+  tick();
+  // Skip on space / click
+  const skip = () => {
+    const boot = document.getElementById('boot');
+    if (boot) { boot.classList.add('fading'); setTimeout(() => boot.remove(), 600); }
+  };
+  window.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') skip(); }, { once: true });
+  document.addEventListener('click', skip, { once: true });
+})();
+
+// Keyboard shortcuts: R = randomize, E = export
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'r' || e.key === 'R') randomize();
+  if (e.key === 'e' || e.key === 'E') exportPNG();
+});
+
+// Stage window drag
+const stageWin = document.getElementById('stage-window');
+makeDraggable(stageWin.querySelector('.title-bar'), stageWin);
+
+initWinamp();
+
