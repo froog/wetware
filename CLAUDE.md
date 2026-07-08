@@ -23,9 +23,9 @@ Zero-dependency vanilla JS / Canvas / Web Audio app. No framework, no tests, no 
 **State → UI → Render loop:**
 - `state` object is the single source of truth (sky, sun, mountains, grid, palms, objects, fx, static, android, sound sections)
 - `CONTROLS` array declaratively defines every dial; `buildUI()` auto-generates all HTML inputs from it at startup
-- Every range/color dial gets a magic-wand toggle (`state.wand`, keyed `'section.dial'`): ranges sine ping-pong across their span starting from the current value, colors orbit the hue wheel (quantized 6° to bound color-keyed caches); `tickWands()` runs at the top of `render()`, wands ride the anim loop via `needsAnimation()`, travel in share URLs, and randomize rolls each at 15%
+- Every range/color dial gets a magic-wand toggle (`state.wand`, keyed `'section.dial'`): ranges sine ping-pong across their span starting from the current value, colors orbit the hue wheel (quantized 6° to bound color-keyed caches); `tickWands()` runs at the top of `render()` (no-op while `static.animate` is off), wand flags travel in share URLs, and randomize rolls each at 15%
 - Any control change calls `requestRender()`, which batches via `requestAnimationFrame`
-- `static.animate` is the master motion switch (mirrored by the `#master-animate` palm toggle under the preset select): it gates the RAF loop, all time-based FX (rain, sweep, band, sun bar scroll, melt, palm sway, blinks) AND the stochastic FX, which draw from a seeded `fxRand` stream whose tick only advances while animate is on — so the scene is a true freeze-frame when off, even if magic wands (the only other loop trigger) keep the RAF loop running
+- `static.animate` (default ON, mirrored by the `#master-animate` palm toggle under the preset select) is the single master motion switch: it gates the RAF loop, all time-based FX (rain, sweep, band, sun bar scroll, melt, palm sway, blinks), magic-wand dial animation (paused wands hold value+phase via accumulated time), and the stochastic FX, which draw from a seeded `fxRand` stream whose tick only advances while animating — off means true freeze-frame
 
 **Render function order** (`render()` ~line 495):
 Scene draw → `applyChromatic` → static/warp chain → ANDROID HUD chain → film grain/CRT chain

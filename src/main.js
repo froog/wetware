@@ -78,7 +78,7 @@ const state = {
     recBadge: false,
     vhsCounter: false,
     hexMarquee: false,
-    animate: false,
+    animate: true,
   },
   android: {
     matrix: 0.0,
@@ -329,7 +329,7 @@ function startWandAnim(section, def) {
       speed: (0.7 + Math.random() * 0.6) * (Math.PI * 2 / 9),  // full sweep ~6-13s, detuned per dial
     };
   }
-  wandAnims[key].t0 = performance.now();
+  wandAnims[key].t = 0;   // accumulated seconds -- only advances while animating
 }
 
 function stopWandAnim(section, def, restore) {
@@ -342,7 +342,12 @@ function stopWandAnim(section, def, restore) {
   }
 }
 
+let lastWandTick = 0;
 function tickWands(now) {
+  // Master animation off = global pause; wands hold their value and phase
+  if (!state.static.animate) { lastWandTick = 0; return; }
+  const dt = lastWandTick ? Math.min(0.1, (now - lastWandTick) / 1000) : 0;
+  lastWandTick = now;
   let soundTouched = false;
   for (const key of Object.keys(state.wand)) {
     if (!state.wand[key]) continue;
@@ -353,7 +358,8 @@ function tickWands(now) {
       if (def) startWandAnim(sec, def);
       continue;
     }
-    const t = (now - a.t0) / 1000;
+    a.t += dt;
+    const t = a.t;
     let v;
     if (a.def.type === 'color') {
       // Quantize to 6 deg so color-keyed caches (statues) stay bounded
@@ -369,10 +375,6 @@ function tickWands(now) {
     if (a.section === 'sound') soundTouched = true;
   }
   if (soundTouched) Sound.update();
-}
-
-function anyWandOn() {
-  return Object.values(state.wand).some(Boolean);
 }
 
 function syncOneControl(section, def) {
@@ -688,9 +690,8 @@ function requestRender() {
 // Drives Matrix rain, sweep, rolling band, REC blink, marquee, sun melt/scroll, palm sway, etc.
 let animLoopRunning = false;
 function needsAnimation() {
-  if (anyWandOn()) return true;      // per-dial magic wands are explicit opt-ins
-  return state.static.animate;       // master switch gates ALL other motion:
-                                     // rain, sweep, band, static noise, blinks
+  // One switch to rule them all: rain, sweep, band, noise, blinks AND wands
+  return state.static.animate;
 }
 function startAnimLoop() {
   if (animLoopRunning) return;
