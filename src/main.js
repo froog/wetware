@@ -2617,14 +2617,64 @@ render();
 
 // Classic CRT power-off: whole screen collapses to a bright horizontal
 // line, the line shrinks to a center dot, the dot blooms and dies to black.
-function crtPowerOff() {
-  if (document.getElementById('crt-off')) return;
-  const el = document.createElement('div');
-  el.id = 'crt-off';
-  document.body.appendChild(el);
-  // force reflow so the animation starts from the open state
-  void el.offsetWidth;
+// `then` fires once the screen is fully dark (used by Restart to reboot).
+function crtPowerOff(then) {
+  let el = document.getElementById('crt-off');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'crt-off';
+    document.body.appendChild(el);
+  }
+  el.classList.remove('run');
+  void el.offsetWidth;   // reflow so the animation restarts from the open state
   el.classList.add('run');
+  setTimeout(() => { if (then) then(); }, 640);   // matches the 0.62s keyframe
+}
+
+// Special > Erase Disk: a storm of error dialogs at random spots, a few
+// seconds of UI corruption, then the machine gives up and shuts down.
+const ERASE_ERRORS = [
+  ['Disk Error', 'Sector -1 not found.'],
+  ['Type 11', 'The application "you" has unexpectedly quit.'],
+  ['Bad F-Line', 'Address 0x00000000 referenced self.'],
+  ['I/O Error', 'The disk is erasing the drive.'],
+  ['Memory', 'Not enough memory to remember this.'],
+  ['System Error', 'ID = 42.  Restart? There is no restart.'],
+  ['Finder', 'The Trash could not be emptied. It is full of you.'],
+  ['Sad Mac', '0000000F  00000003'],
+  ['Alert', 'Please wait. Please wait. Please wait.'],
+  ['Erase', 'Erasing everything ▓▓▓▓░░░░  48%'],
+];
+function eraseDisk() {
+  if (document.getElementById('erase-storm')) return;
+  const storm = document.createElement('div');
+  storm.id = 'erase-storm';
+  document.body.appendChild(storm);
+  document.body.classList.add('glitching');
+
+  let n = 0;
+  const spawn = () => {
+    const [title, body] = ERASE_ERRORS[Math.floor(Math.random() * ERASE_ERRORS.length)];
+    const w = document.createElement('div');
+    w.className = 'err-dialog';
+    w.style.left = `${Math.random() * 78 + 2}vw`;
+    w.style.top = `${Math.random() * 74 + 6}vh`;
+    w.style.transform = `rotate(${(Math.random() * 6 - 3).toFixed(1)}deg)`;
+    w.innerHTML =
+      `<div class="err-bar"><span class="err-x"></span>${title}</div>` +
+      `<div class="err-body"><span class="err-bang">!</span><span>${body}</span></div>` +
+      `<div class="err-btns"><button>OK</button></div>`;
+    storm.appendChild(w);
+  };
+  // Ramp the storm: dialogs pile up faster and faster
+  const timers = [];
+  for (let i = 0; i < 26; i++) timers.push(setTimeout(spawn, i * (140 - i * 3)));
+
+  // A few seconds of chaos, then the OS collapses into the CRT power-off
+  setTimeout(() => {
+    document.body.classList.remove('glitching');
+    crtPowerOff(() => storm.remove());
+  }, 3200);
 }
 
 // The menu bar labyrinth (see src/menus.js). A few corridors are wired:
@@ -2671,7 +2721,9 @@ initMenus({
     document.querySelector('.osmenubar')?.remove();
     Sound.stop();
   },
-  shutDown: crtPowerOff,               // Special > Shut Down: classic CRT collapse to black
+  shutDown: () => crtPowerOff(),        // Special > Shut Down: classic CRT collapse to black
+  restart: () => crtPowerOff(runBoot),  // Special > Restart: power off, then reboot
+  eraseDisk,                            // Special > Erase Disk: error storm -> glitch -> shutdown
 });
 
 // === ABOUT THIS JACKET (click the Apple) ===
@@ -2786,7 +2838,7 @@ refreshFxStatus();
 if (needsAnimation()) startAnimLoop();
 
 // === BOOT INTRO ===
-(function bootIntro() {
+function runBoot() {
   const lines = [
     'WETWARE.OS  v7.5.3',
     'Copyright (c) 1989-2026 wetware.sys',
@@ -2804,17 +2856,23 @@ if (needsAnimation()) startAnimLoop();
     '',
     '> RUN VAPORWAVE.BAS',
   ];
-  const el = document.getElementById('boot-text');
-  if (!el) return;
+  // Rebuild the boot overlay (the original was removed after first boot)
+  let boot = document.getElementById('boot');
+  if (!boot) {
+    boot = document.createElement('div');
+    boot.id = 'boot';
+    boot.innerHTML = '<pre id="boot-text"></pre><div id="boot-prompt">PRESS [SPACE] OR WAIT . . .</div>';
+    document.body.appendChild(boot);
+  }
+  boot.classList.remove('fading');
+  const el = boot.querySelector('#boot-text');
+  el.textContent = '';
   let i = 0;
   const tick = () => {
     if (i >= lines.length) {
       setTimeout(() => {
-        const boot = document.getElementById('boot');
-        if (boot) {
-          boot.classList.add('fading');
-          setTimeout(() => boot.remove(), 1300);
-        }
+        boot.classList.add('fading');
+        setTimeout(() => boot.remove(), 1300);
       }, 600);
       return;
     }
@@ -2825,12 +2883,13 @@ if (needsAnimation()) startAnimLoop();
   tick();
   // Skip on space / click
   const skip = () => {
-    const boot = document.getElementById('boot');
-    if (boot) { boot.classList.add('fading'); setTimeout(() => boot.remove(), 600); }
+    const b = document.getElementById('boot');
+    if (b) { b.classList.add('fading'); setTimeout(() => b.remove(), 600); }
   };
   window.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') skip(); }, { once: true });
   document.addEventListener('click', skip, { once: true });
-})();
+}
+runBoot();
 
 // Keyboard shortcuts: R = randomize, E = export
 window.addEventListener('keydown', e => {

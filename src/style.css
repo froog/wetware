@@ -62,6 +62,86 @@
     cursor: pointer;
   }
 
+  /* ERASE DISK — a storm of System 7 error dialogs, then UI corruption */
+  #erase-storm {
+    position: fixed;
+    inset: 0;
+    z-index: 90000;
+    pointer-events: none;
+  }
+  .err-dialog {
+    position: absolute;
+    width: 232px;
+    background: var(--s7-white);
+    border: 2px solid #000;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+    font-family: var(--font-geneva);
+    animation: err-pop 0.12s steps(2, jump-none) 1;
+  }
+  @keyframes err-pop { 0% { transform: scale(0.7); } 100% {} }
+  .err-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 18px;
+    padding: 0 5px;
+    font-family: var(--font-chicago);
+    font-size: 14px;
+    border-bottom: 1px solid #000;
+    background:
+      repeating-linear-gradient(#000 0 1px, transparent 1px 2px) center / 100% 100%;
+    color: #000;
+  }
+  .err-bar .err-x {
+    width: 11px; height: 11px;
+    background: var(--s7-white);
+    border: 1px solid #000;
+    flex: 0 0 11px;
+  }
+  .err-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 12px 8px;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  .err-bang {
+    flex: 0 0 26px;
+    width: 26px; height: 26px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
+    font-family: var(--font-chicago);
+    font-size: 18px;
+    font-weight: bold;
+  }
+  .err-btns { padding: 0 12px 10px; text-align: right; }
+  .err-btns button {
+    min-width: 58px;
+    font-family: var(--font-chicago);
+    font-size: 14px;
+    border: 2px solid #000;
+    border-radius: 8px;
+    background: var(--s7-white);
+    padding: 2px 10px;
+  }
+  /* Whole-UI corruption while the disk "erases" */
+  .glitching #app,
+  .glitching .osmenubar,
+  .glitching #stage-window,
+  .glitching #wmp-main {
+    animation: ui-glitch 0.18s steps(2, jump-none) infinite;
+  }
+  @keyframes ui-glitch {
+    0%   { transform: translate(0, 0); filter: none; }
+    25%  { transform: translate(-4px, 1px); filter: hue-rotate(40deg) saturate(2); }
+    50%  { transform: translate(3px, -2px) skewX(-1.2deg); filter: invert(0.12); }
+    75%  { transform: translate(-2px, 2px); filter: hue-rotate(-60deg) contrast(1.4); }
+    100% { transform: translate(2px, 0); filter: none; }
+  }
+
   /* CRT POWER-OFF — Special > Shut Down. Collapse to a scanline, then a
      dot, then dark. The overlay itself is the phosphor. */
   #crt-off {
@@ -173,14 +253,13 @@
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
   }
-  /* Nested corridors: open beside the parent item */
+  /* Nested corridors are fixed-positioned; placeSub() sets left/top in JS
+     so a 50-deep chain bounces off the viewport walls instead of marching
+     off-screen. (Escapes any ancestor overflow clipping, too.) */
   .menu-item > .menu-drop {
-    top: -1px;
-    left: 100%;
-  }
-  .menu-item > .menu-drop.flip {
-    left: auto;
-    right: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
   }
   .menu-item.open > .menu-drop { display: block; }
   /* Keep the hovered ancestor chain inverted so the path back reads */

@@ -16,6 +16,123 @@
 //   { label, action: 'name' }       wired leaf (see ACTIONS in initMenus)
 //   { label, cls: 'dim'|'glitch' }  styling: narration / corruption
 
+// =========================================================================
+// LOOK -- a classic text adventure that lives inside the View menu. Each
+// scene's first row is the description (grey narration); the remaining rows
+// are the choices. Descend by hovering a choice; retreat by drifting back a
+// level. scene()/descend() assemble the nested menu-item tree so a path can
+// run ~50 rooms deep without hand-nesting the literals.
+// =========================================================================
+function scene(desc, choices, descCls = 'dim') {
+  const items = [{ label: desc, cls: descCls }];
+  for (const [label, node] of Object.entries(choices)) {
+    if (node == null) items.push({ label });                        // inert flavor
+    else if (node.__scene) items.push({ label, items: node.items }); // sub-scene
+    else items.push({ label, ...node });                            // {action, cls}
+  }
+  return { __scene: true, items };
+}
+const wake = { action: 'wake' };
+const blast = { action: 'staticBlast', cls: 'glitch' };
+
+const DEEP_FLAVOR = [
+  'Wet stone steps, downward.',
+  'The dark thickens.',
+  'Roots grope the ceiling.',
+  'Your torch gutters.',
+  'A door. Then the same door.',
+  'The steps seem to breathe.',
+  'Something counts your footfalls.',
+  'The walls are warm now.',
+  'Down. Always down.',
+  'The air tastes of copper.',
+  'A hum with no source.',
+  'You have been here before.',
+];
+
+// n chained rooms; "Deeper" is the spine, with the odd branching passage.
+function descend(n, bottom) {
+  let node = bottom;
+  for (let i = n; i >= 1; i--) {
+    const choices = {};
+    choices['Deeper'] = node;
+    if (i % 5 === 0) {
+      choices['A side passage'] = scene('A low alcove, barely a room.', {
+        'Feel the wall': scene('Fingers meet yours from the other side.',
+          { 'Pull away': wake, 'Hold on': blast }, 'glitch'),
+        'Back to the steps': wake,
+      });
+    }
+    if (i % 8 === 0) {
+      choices['Light a match'] = scene('Brief gold. Faces set into the brick.',
+        { 'Blow it out': wake }, 'glitch');
+    }
+    choices['Turn back'] = wake;
+    node = scene(DEEP_FLAVOR[i % DEEP_FLAVOR.length], choices, i % 7 === 0 ? 'glitch' : 'dim');
+  }
+  return node;
+}
+
+const CAVE_BOTTOM = scene('The bottom. A door marked EXIT in your own hand.', {
+  'Open it': wake,
+  'It opens onto the forest': blast,
+});
+
+const LOOK = scene('A dark forest. Moonlight between the pines.', {
+  'A house, unlit': scene('A house. The door stands ajar.', {
+    'Knock': scene('The knock is answered before your hand lands.',
+      { 'Step back': wake, 'Try the handle': blast }, 'glitch'),
+    'Go inside': scene('A hallway. Coats with no one in them.', {
+      'The kitchen': scene('Cold stove. A kettle, somehow still warm.', {
+        'Drink the tea': blast,
+        'Open the pantry': scene('Jars of dates. Every one is a future.', { 'Close it': wake }),
+        'Leave': wake,
+      }),
+      'Up the stairs': scene('A landing. Family photos, faces scratched out.', {
+        'The bedroom': scene('Your bed, slept in. Still warm.', {
+          'Look underneath': scene('Another you, hiding. "Quiet," it says.',
+            { 'Hide too': blast, 'Run': wake }, 'glitch'),
+          'Leave': wake,
+        }),
+        'The attic': scene('Boxes labelled with your age, past now and rising.',
+          { 'Open the last one': blast, 'Go down': wake }),
+      }),
+      'The cellar': scene('Stairs going down into the dark.',
+        { 'Descend': descend(48, CAVE_BOTTOM), 'Back up': wake }),
+    }),
+    'Peer in the window': scene('You are inside, asleep at the desk.',
+      { 'Tap the glass': blast, 'Step away': wake }, 'glitch'),
+    'Back to the trees': wake,
+  }),
+  'North, to a stream': scene('A stream, black and quick.', {
+    'Drink': scene('It tastes of static.', { 'Keep drinking': blast, 'Spit it out': wake }, 'glitch'),
+    'Cross it': scene('The far bank is the near bank.', {
+      'Cross again': scene('Again the same bank.', { 'Again': blast, 'Sit down': wake }),
+      'Turn back': wake,
+    }),
+    'Follow it down': scene('It pours into a hole in the world.',
+      { 'Follow it': descend(46, CAVE_BOTTOM), 'Stay': wake }),
+  }),
+  'South, up the mountain': scene('A steep path. The pines lean the wrong way.', {
+    'Climb': scene('Higher. The town below blinks out, house by house.', {
+      'Keep climbing': scene('A cave mouth gapes in the rock face.', {
+        'Go in': descend(48, CAVE_BOTTOM),
+        'Climb past it': scene('The summit. A chair, facing away from you.',
+          { 'Turn the chair around': blast, 'Descend': wake }, 'glitch'),
+      }),
+      'Rest against a rock': scene('You sit. You do not get up for a while.', { 'Get up': wake }),
+    }),
+    'Back down': wake,
+  }),
+  'Pick up a rock': scene('A cold rock. Something is scratched underneath.', {
+    'Read it': scene('Your name, and a date. The date is today.',
+      { 'Drop it': wake, 'Pocket it': blast }, 'glitch'),
+    'Throw it': scene('It does not land.', { 'Listen': wake }),
+  }),
+  'Look up': scene('No stars. A ceiling of dark tile, fluorescent-flecked.',
+    { 'Reach up': blast, 'Look down again': wake }, 'glitch'),
+});
+
 export const MENU_DEFS = [
   {
     label: 'File',
@@ -226,6 +343,8 @@ export const MENU_DEFS = [
       'by Name',
       'by Date',
       '-',
+      { label: 'Look', items: LOOK.items },
+      '-',
       {
         label: 'Show Camera',
         items: [
@@ -337,9 +456,9 @@ export const MENU_DEFS = [
     label: 'Special',
     items: [
       'Empty Trash',
-      'Erase Disk...',
+      { label: 'Erase Disk...', action: 'eraseDisk' },
       '-',
-      { label: 'Restart', action: 'randomize' },
+      { label: 'Restart', action: 'restart' },
       { label: 'Shut Down', action: 'shutDown' },
       '-',
       {
@@ -578,14 +697,35 @@ export function initMenus(actions) {
 
   // Open rightward by default; fold back left at the viewport edge, and
   // never let a corridor run off the bottom of the screen
+  // Fixed-position placement computed from the parent item's rect, so a
+  // corridor 50 levels deep never marches off the screen: each submenu
+  // opens to whichever side has room and BOUNCES off both walls, zig-
+  // zagging back across the viewport. Vertically it clamps to stay visible.
   function placeSub(item, sub) {
-    sub.classList.remove('flip');
-    sub.style.top = '-1px';
-    const r = sub.getBoundingClientRect();
-    if (r.right > window.innerWidth - 8) sub.classList.add('flip');
-    const r2 = sub.getBoundingClientRect();
-    const over = r2.bottom - (window.innerHeight - 8);
-    if (over > 0) sub.style.top = `${-1 - over}px`;
+    const pad = 6;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    // Measure with a neutral position first
+    sub.style.left = '0px';
+    sub.style.top = '0px';
+    const sw = sub.offsetWidth, sh = sub.offsetHeight;
+    const r = item.getBoundingClientRect();
+
+    // Horizontal: prefer opening right of the item; if that overflows, open
+    // left; if BOTH overflow (very deep), pick the side with more room and
+    // clamp so it stays on-screen (slight overlap with the parent is fine).
+    const roomRight = vw - r.right, roomLeft = r.left;
+    let x;
+    if (roomRight >= sw + pad) x = r.right - 1;
+    else if (roomLeft >= sw + pad) x = r.left - sw + 1;
+    else x = roomRight >= roomLeft ? vw - sw - pad : pad;
+    x = Math.max(pad, Math.min(x, vw - sw - pad));
+
+    // Vertical: line up with the item, clamp within the viewport
+    let y = r.top - 1;
+    y = Math.max(pad, Math.min(y, vh - sh - pad));
+
+    sub.style.left = `${Math.round(x)}px`;
+    sub.style.top = `${Math.round(y)}px`;
   }
 
   // Classic Mac menu blink before committing
