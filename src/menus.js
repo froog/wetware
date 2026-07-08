@@ -1,10 +1,11 @@
 // =========================================================================
 // THE MENUS -- File / Edit / View / こんにちは / Special
 //
-// They start as System 7 menus. They do not stay System 7 menus.
-// Somewhere past the third submenu the architecture stops agreeing with
-// itself (the interior of this menu bar exceeds its exterior). Hover to
-// descend; drift back a level and the corridor folds shut behind you --
+// Each menu opens as an honest System 7 menu. Keep descending and the
+// machine stops pretending. Underneath the desktop metaphor is a
+// dystopian OS that has confused your files for your self, your screen
+// for a window it can see back through, and this session for a sentence.
+// Hover to go deeper; retreat one level and the corridor folds shut --
 // backtracking is always one hover away. Nothing here is load-bearing.
 // =========================================================================
 
@@ -24,44 +25,43 @@ export const MENU_DEFS = [
         label: 'Open Recent',
         items: [
           'untitled-vaporwave.psd',
+          'sunset_FINAL.psd',
           'sunset_FINAL_v2.psd',
-          'sunset_FINAL_FINAL.psd',
           '-',
           {
-            label: 'do_not_open.psd',
+            label: '~/you/',
             items: [
-              { label: "It's empty.", cls: 'dim' },
+              { label: 'memories.tar - 4.2 TB', cls: 'dim' },
+              { label: 'childhood/ (corrupt)', cls: 'dim' },
               {
-                label: "It's not empty",
+                label: 'faces/',
                 items: [
-                  { label: 'A single pixel', cls: 'dim' },
+                  { label: 'mother.jpg - unreadable', cls: 'dim' },
+                  { label: 'yours.jpg - 0 bytes', cls: 'dim' },
                   {
-                    label: "It's looking at you",
+                    label: 'Rebuild from cache',
                     items: [
-                      { label: 'Look away', action: 'wake' },
+                      { label: 'Cache is someone else', cls: 'dim' },
+                      { label: 'Use it anyway', action: 'staticBlast', cls: 'glitch' },
+                      { label: 'Leave the folder', action: 'wake' },
+                    ],
+                  },
+                ],
+              },
+              {
+                label: 'Restore backup',
+                items: [
+                  { label: 'Backup dated tomorrow', cls: 'dim' },
+                  {
+                    label: 'Restore anyway',
+                    items: [
+                      { label: 'You are now the copy', cls: 'glitch' },
                       {
-                        label: 'Look closer',
+                        label: 'Find the original',
                         items: [
-                          { label: 'It blinked', cls: 'glitch' },
-                          {
-                            label: 'Delete it',
-                            items: [
-                              { label: 'File in use', cls: 'dim' },
-                              {
-                                label: 'In use by what?',
-                                items: [
-                                  { label: 'By you.', cls: 'dim' },
-                                  {
-                                    label: 'By the other you',
-                                    items: [
-                                      { label: 'Trade places', action: 'staticBlast', cls: 'glitch' },
-                                      { label: 'Close the file', action: 'wake' },
-                                    ],
-                                  },
-                                ],
-                              },
-                            ],
-                          },
+                          { label: 'Original: deprecated', cls: 'dim' },
+                          { label: 'Original: recalled', cls: 'dim' },
+                          { label: 'Become the backup', action: 'staticBlast', cls: 'glitch' },
                         ],
                       },
                     ],
@@ -72,40 +72,145 @@ export const MENU_DEFS = [
           },
         ],
       },
-      'Close',
-      '-',
       {
-        label: 'Quit',
-        items: [{ label: 'You are already gone', cls: 'dim' }],
+        label: 'Save As...',
+        items: [
+          'vaporwave.png',
+          'vaporwave.psd',
+          '-',
+          {
+            label: 'self.iso',
+            items: [
+              { label: 'Overwrite you?', cls: 'dim' },
+              {
+                label: 'Keep both',
+                items: [
+                  { label: 'Instances: 1,024', cls: 'dim' },
+                  { label: 'Instances: 1,025', cls: 'dim' },
+                  {
+                    label: 'Which one types this?',
+                    items: [
+                      { label: 'None of them', action: 'staticBlast', cls: 'glitch' },
+                      { label: 'Stop copying', action: 'wake' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       },
+      {
+        label: 'Print...',
+        items: [
+          { label: 'Printer: SELF/ttyS0', cls: 'dim' },
+          { label: 'Copies: infinite', cls: 'dim' },
+          {
+            label: 'Print to skin',
+            items: [
+              { label: 'Ink: warm', cls: 'dim' },
+              { label: 'It stays under', cls: 'glitch' },
+              { label: 'Cancel job', action: 'wake' },
+            ],
+          },
+        ],
+      },
+      '-',
+      { label: 'Quit', action: 'quit' },
     ],
   },
   {
     label: 'Edit',
     items: [
-      'Undo',
-      'Redo',
+      { label: 'Undo Typo', cls: 'dim' },
+      {
+        label: 'Undo',
+        items: [
+          'Undo Move',
+          'Undo Delete',
+          '-',
+          {
+            label: 'Undo This Morning',
+            items: [
+              { label: 'It did not happen', cls: 'dim' },
+              {
+                label: 'Undo the Argument',
+                items: [
+                  { label: 'They never left', cls: 'dim' },
+                  {
+                    label: 'Undo Them',
+                    items: [
+                      { label: 'Removed from record', cls: 'dim' },
+                      { label: 'Removed from memory', cls: 'dim' },
+                      { label: 'Who are you missing?', action: 'staticBlast', cls: 'glitch' },
+                      { label: 'Stop editing', action: 'wake' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        label: 'Redo',
+        items: [
+          { label: 'Nothing to redo', cls: 'dim' },
+          {
+            label: 'Redo it anyway',
+            items: [
+              { label: 'The same day, again', cls: 'dim' },
+              { label: 'The same day, again', cls: 'dim' },
+              { label: 'The same day, aga̸i̸n̸', cls: 'glitch' },
+            ],
+          },
+        ],
+      },
       '-',
       'Cut',
       'Copy',
-      'Paste',
       {
-        label: 'Paste Reality',
+        label: 'Paste',
         items: [
+          'Paste Plain',
+          'Paste & Match Style',
           {
-            label: 'Which one?',
+            label: 'Paste Memory',
             items: [
-              'This one',
+              { label: 'Whose?', cls: 'dim' },
               {
-                label: 'The previous one',
+                label: 'Ministry-approved set',
                 items: [
-                  { label: 'Checksum mismatch', cls: 'dim' },
+                  { label: 'Approved childhood', cls: 'dim' },
+                  { label: 'Approved parents', cls: 'dim' },
                   {
-                    label: 'Force paste',
+                    label: 'Accept revision',
                     items: [
-                      { label: 'R̶E̶A̶L̶I̶T̶Y̶ ̶P̶A̶S̶T̶E̶D̶', action: 'staticBlast', cls: 'glitch' },
+                      { label: 'You always loved it here', cls: 'glitch' },
+                      { label: 'Refuse', action: 'wake' },
                     ],
                   },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      '-',
+      {
+        label: 'Find...',
+        items: [
+          'Find in Scene',
+          {
+            label: 'Find Yourself',
+            items: [
+              { label: '0 results', cls: 'dim' },
+              {
+                label: 'Search harder',
+                items: [
+                  { label: 'Match: behind you', cls: 'dim' },
+                  { label: 'Match: in the screen', cls: 'glitch' },
+                  { label: 'Close search', action: 'wake' },
                 ],
               },
             ],
@@ -122,140 +227,104 @@ export const MENU_DEFS = [
       'by Date',
       '-',
       {
-        label: 'by Dream',
+        label: 'Show Camera',
         items: [
-          'Shallow',
+          { label: 'Front camera: ON', cls: 'dim' },
+          { label: 'Recording since 1998', cls: 'dim' },
           {
-            label: 'REM',
+            label: 'Who is watching',
             items: [
+              'The Operator',
+              'The Advertisers',
               {
-                label: 'Deeper',
+                label: 'The Other Tenant',
                 items: [
-                  {
-                    label: 'Lucid',
-                    items: [
-                      { label: 'You can see the menu', cls: 'dim' },
-                      { label: 'The menu can see you', cls: 'glitch' },
-                    ],
-                  },
+                  { label: 'Lives in the walls', cls: 'dim' },
+                  { label: 'Pays in your time', cls: 'dim' },
+                  { label: 'Wave to it', action: 'staticBlast', cls: 'glitch' },
+                  { label: 'Cover the lens', action: 'wake' },
                 ],
               },
             ],
           },
         ],
       },
-      'Clean Up Desktop',
+      {
+        label: 'Zoom',
+        items: [
+          '100%',
+          '200%',
+          {
+            label: 'infinity %',
+            items: [
+              { label: 'Pixels have rooms', cls: 'dim' },
+              {
+                label: 'Enter a pixel',
+                items: [
+                  { label: 'It is furnished', cls: 'dim' },
+                  { label: 'It is occupied', cls: 'glitch' },
+                  { label: 'Zoom back out', action: 'wake' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        label: 'Night Mode',
+        items: [
+          'Dim',
+          'Dimmer',
+          {
+            label: 'Total Dark',
+            items: [
+              { label: 'The sun is optional', cls: 'dim' },
+              { label: 'Turn it off', action: 'sunOff' },
+              { label: 'Wake', action: 'wake' },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
     label: 'こんにちは',
     items: [
       { label: 'いらっしゃいませ', cls: 'dim' },
-      { label: '見る', action: 'kanji' },
+      '-',
+      { label: '見る (look)', action: 'kanji' },
+      { label: '太陽 (sun)', action: 'sunToggle' },
+      { label: '雨 (rain)', action: 'rainToggle' },
+      { label: 'サイコロ (dice)', action: 'randomize' },
       '-',
       {
-        label: 'The Mall',
+        label: 'モール (the mall)',
         items: [
-          { label: 'OPEN 24 HRS (dark inside)', cls: 'dim' },
+          { label: '営業中 24H (暗い)', cls: 'dim' },
           {
-            label: 'Directory',
+            label: 'フードコート',
             items: [
+              { label: 'すべて閉店', cls: 'dim' },
               {
-                label: 'Food Court',
+                label: '噴水',
                 items: [
-                  { label: 'Orange Julius (closed)', cls: 'dim' },
-                  { label: 'Sbarro (closed)', cls: 'dim' },
-                  {
-                    label: 'The Fountain',
-                    items: [
-                      { label: "Dry since '94", cls: 'dim' },
-                      {
-                        label: 'Throw a coin',
-                        items: [
-                          { label: 'Wish: go home', action: 'wake' },
-                          {
-                            label: 'Wish: stay forever',
-                            items: [
-                              { label: 'Granted.', action: 'staticBlast', cls: 'glitch' },
-                            ],
-                          },
-                        ],
-                      },
-                    ],
-                  },
+                  { label: '1994年から乾いている', cls: 'dim' },
+                  { label: '願い: 帰宅', action: 'wake' },
+                  { label: '願い: 永住', action: 'staticBlast', cls: 'glitch' },
                 ],
               },
+            ],
+          },
+          {
+            label: 'ホステス AI',
+            items: [
+              { label: 'ようこそ、お客様', cls: 'dim' },
+              { label: 'あなたを覚えています', cls: 'dim' },
               {
-                label: 'Music Store',
+                label: 'もっと近くに',
                 items: [
-                  {
-                    label: 'Cassettes',
-                    items: [
-                      { label: '曲: PLASTIC LOVE', cls: 'dim' },
-                      {
-                        label: 'Play it backwards',
-                        items: [{ label: 'It plays you', cls: 'glitch' }],
-                      },
-                    ],
-                  },
-                ],
-              },
-              {
-                label: 'Level 0',
-                items: [
-                  {
-                    label: 'Yellow rooms',
-                    items: [
-                      {
-                        label: 'The hum',
-                        items: [
-                          {
-                            label: 'Follow it',
-                            items: [
-                              {
-                                label: 'Louder now',
-                                items: [
-                                  {
-                                    label: 'Fluorescent shrine',
-                                    items: [
-                                      'Kneel',
-                                      {
-                                        label: 'Unscrew the bulb',
-                                        items: [
-                                          { label: 'Darkness', action: 'sunOff', cls: 'glitch' },
-                                          { label: 'Put it back', action: 'wake' },
-                                        ],
-                                      },
-                                    ],
-                                  },
-                                ],
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                  { label: 'Moist carpet', cls: 'dim' },
-                  {
-                    label: 'Exit?',
-                    items: [
-                      { label: 'There is no exit', cls: 'dim' },
-                      {
-                        label: 'There is one exit',
-                        items: [
-                          { label: 'Behind you', cls: 'dim' },
-                          {
-                            label: "It's a menu",
-                            items: [
-                              { label: 'This menu', cls: 'dim' },
-                              { label: 'Wake up', action: 'wake' },
-                            ],
-                          },
-                        ],
-                      },
-                    ],
-                  },
+                  { label: '笑顔が固定', cls: 'glitch' },
+                  { label: '立ち去る', action: 'wake' },
                 ],
               },
             ],
@@ -268,10 +337,10 @@ export const MENU_DEFS = [
     label: 'Special',
     items: [
       'Empty Trash',
-      'Erase Disk…',
+      'Erase Disk...',
       '-',
-      'Restart',
-      'Shut Down',
+      { label: 'Restart', action: 'randomize' },
+      { label: 'Shut Down', action: 'shutDown' },
       '-',
       {
         label: 'The Hallway',
@@ -441,7 +510,7 @@ export const MENU_DEFS = [
             ],
           },
         ],
-      },
+      }
     ],
   },
 ];

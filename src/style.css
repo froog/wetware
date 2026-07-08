@@ -62,6 +62,29 @@
     cursor: pointer;
   }
 
+  /* CRT POWER-OFF — Special > Shut Down. Collapse to a scanline, then a
+     dot, then dark. The overlay itself is the phosphor. */
+  #crt-off {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: #000;
+    pointer-events: none;
+    /* the shrinking phosphor line/dot painted with a gradient sandwich */
+    background:
+      radial-gradient(closest-side, #fff 0%, #dff 40%, rgba(255,255,255,0) 100%) center / 100% 100% no-repeat,
+      #000;
+  }
+  #crt-off.run {
+    animation: crt-off 0.62s cubic-bezier(0.5, 0, 0.7, 1) forwards;
+  }
+  @keyframes crt-off {
+    0%   { background-size: 140% 140%; }        /* full screen lit */
+    45%  { background-size: 140% 3px; }         /* collapse to a bright line */
+    82%  { background-size: 6px 3px; }          /* line pulls to a center dot */
+    100% { background-size: 0 0; }              /* dot vanishes -> pure black */
+  }
+
   /* ABOUT THIS JACKET — the Apple menu's apple shrine */
   #about-jacket {
     position: fixed;
@@ -252,6 +275,11 @@
     background: var(--s7-white);
     font-family: inherit;
   }
+  /* Close box hides the window outright (specificity beats .window's flex) */
+  .window[hidden] { display: none; }
+  /* Resize box = System 7 window-shade: roll up to the title bar only */
+  .window.shaded > *:not(.title-bar) { display: none; }
+  .window.shaded { height: auto !important; min-height: 0 !important; }
   /* Title bar rebuilt 1:1 from the reference shot: one #cfc8ff highlight
      row, six #707070 pinstripes on #efe8ef, one #a0a0d0 shadow row.
      The distress warp stays on top -- faithful chrome, magic fuzziness. */

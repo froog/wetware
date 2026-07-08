@@ -2615,6 +2615,18 @@ document.getElementById('preset').addEventListener('change', e => {
 syncUIFromState();
 render();
 
+// Classic CRT power-off: whole screen collapses to a bright horizontal
+// line, the line shrinks to a center dot, the dot blooms and dies to black.
+function crtPowerOff() {
+  if (document.getElementById('crt-off')) return;
+  const el = document.createElement('div');
+  el.id = 'crt-off';
+  document.body.appendChild(el);
+  // force reflow so the animation starts from the open state
+  void el.offsetWidth;
+  el.classList.add('run');
+}
+
 // The menu bar labyrinth (see src/menus.js). A few corridors are wired:
 initMenus({
   wake: () => {},                       // any exit just closes the maze
@@ -2624,10 +2636,20 @@ initMenus({
     syncUIFromState();
     requestRender();
   },
+  sunToggle: () => {
+    state.sun.enabled = !state.sun.enabled;
+    syncUIFromState();
+    requestRender();
+  },
   sunOff: () => {
     state.sun.enabled = false;
     syncUIFromState();
     requestRender();
+  },
+  rainToggle: () => {
+    state.sound.rain = state.sound.rain > 0.02 ? 0 : 0.6;
+    syncUIFromState();
+    Sound.update();
   },
   staticBlast: () => {                  // the signal objects to what you chose
     const prev = { tv: state.static.tvStatic, warp: state.static.waveWarp };
@@ -2641,17 +2663,25 @@ initMenus({
       requestRender();
     }, 900);
   },
+  quit: () => {                         // File > Quit: close every window, strip the chrome
+    for (const id of ['stage-window', 'wmp-main', 'wmp-playlist', 'controls', 'about-jacket']) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+    document.querySelector('.osmenubar')?.remove();
+    Sound.stop();
+  },
+  shutDown: crtPowerOff,               // Special > Shut Down: classic CRT collapse to black
 });
 
 // === ABOUT THIS JACKET (click the Apple) ===
-const APPLE_COUNT = 21;
+const APPLE_COUNT = 41;
 const jacketWin = document.getElementById('about-jacket');
 const jacketImg = document.getElementById('jacket-apple');
 let appleIdx = Math.floor(Math.random() * APPLE_COUNT);   // random apple on load
 function showApple(i) {
   appleIdx = ((i % APPLE_COUNT) + APPLE_COUNT) % APPLE_COUNT;
   jacketImg.src = `assets/apples/apple${String(appleIdx + 1).padStart(2, '0')}.jpg`;
-  document.getElementById('jacket-idx').textContent = appleIdx + 1;
 }
 showApple(appleIdx);
 document.querySelector('.osmenubar .apple').addEventListener('click', e => {
@@ -2663,8 +2693,26 @@ jacketImg.addEventListener('click', () => {
   do { n = Math.floor(Math.random() * APPLE_COUNT); } while (n === appleIdx);
   showApple(n);
 });
-document.getElementById('jacket-close').addEventListener('click', () => { jacketWin.hidden = true; });
 makeDraggable(jacketWin.querySelector('.title-bar'), jacketWin);
+
+// === WINDOW CHROME === close = hide the window; resize = window-shade
+// roll-up to the title bar only, toggle back. (Winamp manages its own.)
+function wireWindowChrome(win) {
+  const bar = win.querySelector(':scope > .title-bar');
+  if (!bar) return;
+  bar.querySelector('.close')?.addEventListener('click', e => {
+    e.stopPropagation();
+    win.hidden = true;
+  });
+  bar.querySelector('.resize')?.addEventListener('click', e => {
+    e.stopPropagation();
+    win.classList.toggle('shaded');
+  });
+}
+['controls', 'stage-window', 'about-jacket'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) wireWindowChrome(el);
+});
 
 // === STATUS BAR LIVE UPDATES ===
 function pad2(n) { return n.toString().padStart(2, '0'); }
