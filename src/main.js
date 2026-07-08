@@ -2677,6 +2677,37 @@ function eraseDisk() {
   }, 3200);
 }
 
+// View > Night Mode / Zoom: brightness + zoom applied to the whole app,
+// pinned to the top-left corner. Both live on <body> so everything (chrome,
+// windows, stage) transforms together.
+let uiZoom = 1, uiBright = 1;
+function applyUiFx() {
+  // Zoom the workspace (sidebar + stage), pinned top-left. The menu bar is
+  // NOT scaled, so it stays put and usable -- you can always zoom back out.
+  const app = document.getElementById('app');
+  if (app) {
+    app.style.transformOrigin = '0 0';
+    app.style.transform = uiZoom === 1 ? '' : `scale(${uiZoom})`;
+  }
+  // Brightness dims everything (no transform, so menus stay clickable).
+  document.body.style.filter = uiBright === 1 ? '' : `brightness(${uiBright})`;
+}
+
+// "It is occupied": clear everything to black, leave one glowing white
+// square in the middle of the screen. Click anywhere to come back.
+function showOccupied() {
+  if (document.getElementById('occupied')) return;
+  uiZoom = 1; uiBright = 1; applyUiFx();   // neutralize zoom so the void is clean
+  const el = document.createElement('div');
+  el.id = 'occupied';
+  el.innerHTML = '<div class="occupied-square"></div>';
+  el.addEventListener('click', () => {
+    el.remove();
+    uiZoom = 1; uiBright = 1; applyUiFx();   // return to a clean screen
+  });
+  document.body.appendChild(el);
+}
+
 // The menu bar labyrinth (see src/menus.js). A few corridors are wired:
 initMenus({
   wake: () => {},                       // any exit just closes the maze
@@ -2722,8 +2753,23 @@ initMenus({
     Sound.stop();
   },
   shutDown: () => crtPowerOff(),        // Special > Shut Down: classic CRT collapse to black
-  restart: () => crtPowerOff(runBoot),  // Special > Restart: power off, then reboot
+  restart: () => crtPowerOff(() => {    // Special > Restart: power off, then reboot
+    runBoot();                          // opaque boot overlay first (still under the CRT black)
+    document.getElementById('crt-off')?.remove();   // lift the black -> boot shows, no app flash
+  }),
   eraseDisk,                            // Special > Erase Disk: error storm -> glitch -> shutdown
+  // View > Night Mode
+  nightDay:    () => { uiBright = 1;   applyUiFx(); },
+  nightDim:    () => { uiBright = 0.5; applyUiFx(); },   // -50%
+  nightDimmer: () => { uiBright = 0.2; applyUiFx(); },   // -80%
+  // View > Zoom (pinned top-left)
+  zoom100:  () => { uiZoom = 1; applyUiFx(); },
+  zoom200:  () => { uiZoom = 2; applyUiFx(); },
+  zoomReset: () => {                    // "Zoom back out" resets everything
+    uiZoom = 1; uiBright = 1; applyUiFx();
+    document.getElementById('occupied')?.remove();
+  },
+  occupied: showOccupied,               // clear to black + one glowing square
 });
 
 // === ABOUT THIS JACKET (click the Apple) ===

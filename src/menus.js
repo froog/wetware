@@ -303,8 +303,9 @@ export const MENU_DEFS = [
                   {
                     label: 'Accept revision',
                     items: [
-                      { label: 'You always loved it here', cls: 'glitch' },
-                      { label: 'Refuse', action: 'wake' },
+                      { label: 'You love it here', cls: 'glitch' },
+                      { label: 'You love the Ministry', action: 'glitch' },
+                      { label: 'You love all', action: 'glitch' },
                     ],
                   },
                 ],
@@ -371,8 +372,8 @@ export const MENU_DEFS = [
       {
         label: 'Zoom',
         items: [
-          '100%',
-          '200%',
+          { label: '100%', action: 'zoom100' },
+          { label: '200%', action: 'zoom200' },
           {
             label: 'infinity %',
             items: [
@@ -381,8 +382,8 @@ export const MENU_DEFS = [
                 label: 'Enter a pixel',
                 items: [
                   { label: 'It is furnished', cls: 'dim' },
-                  { label: 'It is occupied', cls: 'glitch' },
-                  { label: 'Zoom back out', action: 'wake' },
+                  { label: 'It is occupied', action: 'occupied', cls: 'glitch' },
+                  { label: 'Zoom back out', action: 'zoomReset' },
                 ],
               },
             ],
@@ -392,8 +393,9 @@ export const MENU_DEFS = [
       {
         label: 'Night Mode',
         items: [
-          'Dim',
-          'Dimmer',
+          { label: 'Day', action: 'nightDay' },
+          { label: 'Dim', action: 'nightDim' },
+          { label: 'Dimmer', action: 'nightDimmer' },
           {
             label: 'Total Dark',
             items: [

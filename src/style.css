@@ -62,6 +62,31 @@
     cursor: pointer;
   }
 
+  /* "It is occupied" — black void, one breathing white glowing square */
+  #occupied {
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .occupied-square {
+    width: 30vmin;
+    height: 30vmin;
+    background: #fff;
+    box-shadow:
+      0 0 8vmin 2vmin rgba(255, 255, 255, 0.9),
+      0 0 20vmin 6vmin rgba(200, 230, 255, 0.5);
+    animation: occupied-breathe 3.2s ease-in-out infinite;
+  }
+  @keyframes occupied-breathe {
+    0%, 100% { transform: scale(1);    box-shadow: 0 0 8vmin 2vmin rgba(255,255,255,0.85), 0 0 20vmin 6vmin rgba(200,230,255,0.45); }
+    50%      { transform: scale(1.06); box-shadow: 0 0 12vmin 3vmin rgba(255,255,255,1),    0 0 28vmin 9vmin rgba(200,230,255,0.6); }
+  }
+
   /* ERASE DISK — a storm of System 7 error dialogs, then UI corruption */
   #erase-storm {
     position: fixed;
