@@ -2,6 +2,7 @@ import './style.css';
 import { makeDraggable } from './drag.js';
 import { initWinamp } from './winamp.js';
 import { STATUE_SOURCES } from './statues.js';
+import { initMenus } from './menus.js';
 // PRESETS
 //=========================================================================
 const PRESETS = {
@@ -2613,6 +2614,34 @@ document.getElementById('preset').addEventListener('change', e => {
 });
 syncUIFromState();
 render();
+
+// The menu bar labyrinth (see src/menus.js). A few corridors are wired:
+initMenus({
+  wake: () => {},                       // any exit just closes the maze
+  randomize,
+  kanji: () => {
+    state.objects.kanji = !state.objects.kanji;
+    syncUIFromState();
+    requestRender();
+  },
+  sunOff: () => {
+    state.sun.enabled = false;
+    syncUIFromState();
+    requestRender();
+  },
+  staticBlast: () => {                  // the signal objects to what you chose
+    const prev = { tv: state.static.tvStatic, warp: state.static.waveWarp };
+    state.static.tvStatic = 0.85;
+    state.static.waveWarp = 0.5;
+    requestRender();
+    setTimeout(() => {
+      state.static.tvStatic = prev.tv;
+      state.static.waveWarp = prev.warp;
+      syncUIFromState();
+      requestRender();
+    }, 900);
+  },
+});
 
 // === STATUS BAR LIVE UPDATES ===
 function pad2(n) { return n.toString().padStart(2, '0'); }

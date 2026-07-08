@@ -51,6 +51,7 @@ Scene draw → `applyChromatic` → static/warp chain → ANDROID HUD chain → 
 - `index.html` — app shell, SVG filter defs, Mac System 7 chrome structure
 - `src/main.js` — all logic (~2300 lines): presets, state, CONTROLS definitions, UI builder, render pipeline, every draw function, Sound engine, share-URL hash codec
 - `src/statues.js` — generated statue pool (base64 grayscale+alpha cutouts; David from assets/david.png, the rest public-domain Wikimedia Commons)
+- `src/menus.js` — the menu bar labyrinth: `MENU_DEFS` story tree (System 7 on the surface, backrooms/House-of-Leaves underneath — up to ~17 levels) + dropdown engine (click title to open, hover to descend, retreat folds corridors, submenus flip at the viewport edge); a few leaves fire real actions (`randomize`, `staticBlast`, `sunOff`, `kanji`) wired from main.js
 - `src/style.css` — all styles for the System 7 / vaporwave chrome
 - `assets/` — `david.png` (source for dithering), ambient audio files
 - `aesthetics/` — mood board images, not used at runtime
