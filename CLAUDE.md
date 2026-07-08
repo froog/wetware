@@ -33,6 +33,8 @@ Scene draw → `applyChromatic` → static/warp chain → ANDROID HUD chain → 
 **Sound** (`Sound` object, Web Audio API):
 - Synthesized entirely at runtime — drone oscillator + shimmer pad + vinyl crackle buffer + rain noise + convolution reverb (impulse generated from noise)
 - `Sound.update()` is called directly from slider `input` events for the sound section; all other sections call `requestRender()`
+- Transport is a single Winamp-styled play/pause button (`#sound-toggle`, `.wmp-btn`); `Sound.running` drives the ▶/❚❚ glyph
+- RCA patch bay (`#patchbay`, `state.patch`): four pluggable insert effects (echo/crush/warble/wobble) built as {input,output} sub-graphs in `buildFxRack`; `rewireFxRack` chains the plugged ones in series between the master bus and destination; clicking a jack toggles `state.patch[k]` + calls `Sound.setPatch()`. Patches travel in the share URL
 
 **Key conventions:**
 - Mountain heights use a seeded PRNG (`mulberry32`) so scenes reproduce deterministically from `state.mountains.seed`

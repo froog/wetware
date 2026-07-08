@@ -159,6 +159,9 @@ const state = {
     hyperwarp: 0,     // liquid warp + diffusion over the whole frame
     timelord: 1,      // animation speed multiplier
   },
+  // RCA patch bay: each plugged cable inserts an FX into the master chain,
+  // stacking in series in this order. Travels in the share URL.
+  patch: { echo: false, crush: false, warble: false, wobble: false },
   wand: {},  // magic-wand auto-animate flags, keyed 'section.dial' -- filled from CONTROLS below
 };
 
@@ -2433,6 +2436,7 @@ function mixColor(hexA_, hexB, t) {
 const Sound = (() => {
   let ctx = null;
   let nodes = null; // bag of nodes when running
+  let fx = null;    // RCA patch-bay effect nodes
   let running = false;
   let lfoFreqVal = 0.2; // smooth handoff value
 
@@ -2483,13 +2487,16 @@ const Sound = (() => {
     const conv = ac.createConvolver();
     conv.buffer = makeReverbImpulse(ac, 4.5, 2.5);
 
-    // Bus: sources -> lpf -> (dry + (wet -> conv)) -> master -> destination
+    // Bus: sources -> lpf -> (dry + (wet -> conv)) -> master -> FX rack -> destination
     lpf.connect(dryGain);
     lpf.connect(conv);
     conv.connect(wetGain);
     dryGain.connect(master);
     wetGain.connect(master);
-    master.connect(ac.destination);
+    const fxIn = ac.createGain();
+    master.connect(fxIn);
+    fx = buildFxRack(ac);   // the pluggable RCA effects
+    rewireFxRack(fxIn, ac);
 
     // --- Drone: 2 detuned sawtooths + sub sine ---
     const droneA = ac.createOscillator();
@@ -2581,13 +2588,82 @@ const Sound = (() => {
     master.gain.linearRampToValueAtTime(s.masterVol, ac.currentTime + 1.2);
 
     nodes = {
-      master, lpf, dryGain, wetGain,
+      master, lpf, dryGain, wetGain, fxIn,
       droneA, droneB, sub, droneGain, subGain,
       lfo, lfoGain, padSrc, padBP, padGain, padLfo, padLfoGain,
       crackleSrc, crackleHP, crackleGain,
       rainSrc, rainLP, rainGain,
     };
     running = true;
+  }
+
+  // ---- RCA PATCH BAY : pluggable insert effects ----
+  // Each fx exposes { input, output }; rewireFxRack chains the plugged ones
+  // in series (state.patch order) between the master bus and the speakers.
+  const FX_ORDER = ['echo', 'crush', 'warble', 'wobble'];
+  function buildFxRack(ac) {
+    const rack = {};
+
+    // ECHO -- feedback delay
+    {
+      const input = ac.createGain(), output = ac.createGain();
+      const delay = ac.createDelay(1.0); delay.delayTime.value = 0.28;
+      const fb = ac.createGain(); fb.gain.value = 0.42;
+      const wet = ac.createGain(); wet.gain.value = 0.5;
+      input.connect(output);                 // dry passthrough
+      input.connect(delay); delay.connect(fb); fb.connect(delay);
+      delay.connect(wet); wet.connect(output);
+      rack.echo = { input, output };
+    }
+    // CRUSH -- hard-clip waveshaper (grungy bitcrush-ish)
+    {
+      const input = ac.createGain(), output = ac.createGain();
+      const shaper = ac.createWaveShaper();
+      const n = 1024, curve = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;
+        const q = Math.round(x * 6) / 6;      // quantize to a few steps
+        curve[i] = Math.tanh(q * 2.2);
+      }
+      shaper.curve = curve; shaper.oversample = '2x';
+      const trim = ac.createGain(); trim.gain.value = 0.7;
+      input.connect(shaper); shaper.connect(trim); trim.connect(output);
+      rack.crush = { input, output };
+    }
+    // WARBLE -- modulated delay (tape wow/flutter, vibrato)
+    {
+      const input = ac.createGain(), output = ac.createGain();
+      const delay = ac.createDelay(0.05); delay.delayTime.value = 0.006;
+      const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 5.5;
+      const depth = ac.createGain(); depth.gain.value = 0.004;
+      lfo.connect(depth); depth.connect(delay.delayTime); lfo.start();
+      input.connect(delay); delay.connect(output);
+      rack.warble = { input, output };
+    }
+    // WOBBLE -- tremolo (LFO on gain)
+    {
+      const input = ac.createGain(), output = ac.createGain();
+      const vca = ac.createGain(); vca.gain.value = 0.55;
+      const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 4;
+      const depth = ac.createGain(); depth.gain.value = 0.45;
+      lfo.connect(depth); depth.connect(vca.gain); lfo.start();
+      input.connect(vca); vca.connect(output);
+      rack.wobble = { input, output };
+    }
+    return rack;
+  }
+  function rewireFxRack(fxIn, ac) {
+    if (!fx) return;
+    fxIn.disconnect();
+    for (const k of FX_ORDER) fx[k].output.disconnect();
+    const chain = FX_ORDER.filter(k => state.patch[k]).map(k => fx[k]);
+    let node = fxIn;
+    for (const f of chain) { node.connect(f.input); node = f.output; }
+    node.connect(ac.destination);
+  }
+  // Called by the patch-bay UI when a cable is plugged/unplugged
+  function setPatch() {
+    if (running && nodes) rewireFxRack(nodes.fxIn, ctx);
   }
 
   function stop() {
@@ -2625,7 +2701,7 @@ const Sound = (() => {
     ramp(nodes.dryGain.gain, 1 - s.reverb * 0.5);
   }
 
-  return { start, stop, update, get running() { return running; } };
+  return { start, stop, update, setPatch, get running() { return running; } };
 })();
 
 //=========================================================================
@@ -2665,14 +2741,50 @@ masterOverdrive.addEventListener('input', () => {
   overdrivePanel.hidden = !state.overdrive.enabled;
   requestRender();
 });
-document.getElementById('sound-play').addEventListener('click', () => {
-  Sound.start();
-  document.getElementById('snd-status').textContent = 'PLAYING';
+// Single play/pause transport (Winamp-styled)
+const soundToggle = document.getElementById('sound-toggle');
+function refreshTransport() {
+  soundToggle.innerHTML = Sound.running ? '&#10074;&#10074;' : '&#9654;';   // ⏸ / ▶
+  document.getElementById('snd-status').textContent = Sound.running ? 'PLAYING' : 'STANDBY';
+}
+soundToggle.addEventListener('click', () => {
+  if (Sound.running) Sound.stop(); else Sound.start();
+  refreshTransport();
 });
-document.getElementById('sound-stop').addEventListener('click', () => {
-  Sound.stop();
-  document.getElementById('snd-status').textContent = 'STANDBY';
-});
+
+// RCA patch bay -- plug cables to stack insert effects on the sound
+const PATCH_FX = [
+  { k: 'echo',   label: 'ECHO',   color: '#ff3b5c' },  // RCA red
+  { k: 'crush',  label: 'CRUSH',  color: '#ffd60a' },  // yellow
+  { k: 'warble', label: 'WARBLE', color: '#e8e8f0' },  // white
+  { k: 'wobble', label: 'WOBBLE', color: '#00f0ff' },  // cyan (video)
+];
+function buildPatchBay() {
+  const host = document.getElementById('patchbay');
+  if (!host) return;
+  host.innerHTML = '<div class="patch-rail"></div>';
+  for (const fx of PATCH_FX) {
+    const jack = document.createElement('button');
+    jack.type = 'button';
+    jack.className = 'jack';
+    jack.dataset.k = fx.k;
+    jack.style.setProperty('--rca', fx.color);
+    jack.classList.toggle('plugged', !!state.patch[fx.k]);
+    jack.innerHTML =
+      '<span class="cable"></span>' +
+      '<span class="plug"></span>' +
+      '<span class="socket"></span>' +
+      `<span class="jack-label">${fx.label}</span>`;
+    jack.addEventListener('click', () => {
+      state.patch[fx.k] = !state.patch[fx.k];
+      jack.classList.toggle('plugged', state.patch[fx.k]);
+      Sound.setPatch();
+      scheduleHashUpdate();
+    });
+    host.appendChild(jack);
+  }
+}
+buildPatchBay();
 document.getElementById('preset').addEventListener('change', e => {
   document.getElementById('stage-preset').textContent = e.target.value;
 });
@@ -2987,7 +3099,7 @@ if (needsAnimation()) startAnimLoop();
 
 // === BOOT INTRO ===
 function runBoot() {
-  SFX.startup();   // the startup chime (deferred to first gesture if autoplay-blocked)
+  //SFX.startup();   // the startup chime (deferred to first gesture if autoplay-blocked)
   const lines = [
     'WETWARE.OS  v7.5.3',
     'Copyright (c) 1989-2026 wetware.sys',
