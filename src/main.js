@@ -2643,6 +2643,29 @@ initMenus({
   },
 });
 
+// === ABOUT THIS JACKET (click the Apple) ===
+const APPLE_COUNT = 21;
+const jacketWin = document.getElementById('about-jacket');
+const jacketImg = document.getElementById('jacket-apple');
+let appleIdx = Math.floor(Math.random() * APPLE_COUNT);   // random apple on load
+function showApple(i) {
+  appleIdx = ((i % APPLE_COUNT) + APPLE_COUNT) % APPLE_COUNT;
+  jacketImg.src = `assets/apples/apple${String(appleIdx + 1).padStart(2, '0')}.jpg`;
+  document.getElementById('jacket-idx').textContent = appleIdx + 1;
+}
+showApple(appleIdx);
+document.querySelector('.osmenubar .apple').addEventListener('click', e => {
+  e.stopPropagation();
+  jacketWin.hidden = !jacketWin.hidden;
+});
+jacketImg.addEventListener('click', () => {
+  let n;
+  do { n = Math.floor(Math.random() * APPLE_COUNT); } while (n === appleIdx);
+  showApple(n);
+});
+document.getElementById('jacket-close').addEventListener('click', () => { jacketWin.hidden = true; });
+makeDraggable(jacketWin.querySelector('.title-bar'), jacketWin);
+
 // === STATUS BAR LIVE UPDATES ===
 function pad2(n) { return n.toString().padStart(2, '0'); }
 function updateClock() {

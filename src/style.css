@@ -59,6 +59,44 @@
     background-size: contain;
     background-position: center;
     margin-right: 0;
+    cursor: pointer;
+  }
+
+  /* ABOUT THIS JACKET — the Apple menu's apple shrine */
+  #about-jacket {
+    position: fixed;
+    top: 110px;
+    left: 470px;
+    width: 320px;
+    z-index: 300;
+    transform: rotate(0.4deg);
+    transform-origin: top left;
+  }
+  #about-jacket .jacket-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 16px 12px;
+    background: var(--s7-white);
+  }
+  #jacket-apple {
+    max-width: 100%;
+    max-height: 250px;
+    border: 1px solid #000;
+    cursor: pointer;
+    background: #fff;
+  }
+  .jacket-caption {
+    text-align: center;
+    font-family: var(--font-geneva);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .jacket-name {
+    font-family: var(--font-chicago);
+    font-size: 18px;
+    margin-bottom: 2px;
   }
   .osmenubar .mi {
     cursor: default;
