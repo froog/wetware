@@ -2,8 +2,11 @@ import { makeDraggable } from './drag.js';
 
 export function initWinamp() {
   const TRACKS = [
-    { name: 'Crusing Sunset', file: '/assets/crusing_sunset.mp3' },
-    { name: 'Neon Trigger',   file: '/assets/neon_trigger.mp3'   },
+    { name: 'Flash Boy - Crusing Sunset',       file: '/assets/Flash_Boy_-_Crusing_Sunset.mp3' },
+    { name: 'The Chaser - Neon Trigger',        file: '/assets/The_Chaser_-_Neon_Trigger.mp3' },
+    { name: 'Hurricane Huck - Trigger Point',   file: '/assets/Hurricane_Huck_-_Trigger_Point.mp3' },
+    { name: 'MC Master - Tape Static',          file: '/assets/MC_Master_-_Tape_Static.mp3' },
+    { name: '咲きたい - 今ここで、街の真ん中で', file: encodeURI('/assets/咲きたい_-_今ここで_街の真ん中で.mp3') },
   ];
 
   let currentIdx = 0;

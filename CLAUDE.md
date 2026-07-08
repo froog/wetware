@@ -24,7 +24,7 @@ Zero-dependency vanilla JS / Canvas / Web Audio app. No framework, no tests, no 
 - `state` object is the single source of truth (sky, sun, mountains, grid, palms, objects, fx, static, android, sound sections)
 - `CONTROLS` array declaratively defines every dial; `buildUI()` auto-generates all HTML inputs from it at startup
 - Any control change calls `requestRender()`, which batches via `requestAnimationFrame`
-- Animated features (matrix rain, polygon orbits, scan sweep, rolling band) start a continuous `animLoopRunning` RAF loop; it self-terminates when `needsAnimation()` returns false
+- Animated features (matrix rain, scan sweep, rolling band, and — when `static.animate` is on — sun bar scroll, sun melt, palm sway) start a continuous `animLoopRunning` RAF loop; it self-terminates when `needsAnimation()` returns false
 
 **Render function order** (`render()` ~line 495):
 Scene draw → `applyChromatic` → static/warp chain → ANDROID HUD chain → film grain/CRT chain
@@ -41,12 +41,15 @@ Scene draw → `applyChromatic` → static/warp chain → ANDROID HUD chain → 
 - Fonts are system.css's System 7 bitmap faces: Chicago_12 (`--font-chicago`, pixel-true at 16px) for chrome/headings/buttons, Geneva_9 (`--font-geneva`, pixel-true at 12px) for labels/status text. Silkscreen/VT323 survive only in the boot screen and Winamp LCD display
 - `src/style.css` keeps a small override layer on top of system.css: warp filter + separator line on `.title-bar`, button skin reset for close/resize widgets, and neutralizers for system.css's global checkbox hijack (`opacity:0; position:fixed` + label pseudo-boxes) and the `<select>` arrow (use `background-color`, never `background`, on selects)
 - Floating windows (`#stage-window`, `#wmp-main`, `#wmp-playlist`) are CSS-tilted; `drag.js` reads computed `left`/`top` (not `getBoundingClientRect`) so dragging preserves the tilt without jumping
-- David (Statue of David) is rendered via Bayer 4x4 ordered dithering from a base64-inlined PNG; the taint-free inlining is intentional so `file://` works
+- Statues (David + 7 more classical cutouts in `src/statues.js`, grayscale+alpha PNGs base64-inlined so `file://` works) are rendered via Bayer 4x4 ordered dithering with an alpha mask: bright pixels → tint, dark pixels → deep shadow tone (`solid` style, keeps the silhouette crisp) or transparent (`ghost` style). Processed canvases cache per `key|color|style`
+- Scene state is shareable via URL: `#w=<base64url JSON diff vs DEFAULT_STATE>` — `encodeShareHash()`/`applyShareHash()` in `src/main.js`, no storage involved
+- System 7 chrome colors are sampled 1:1 from `aesthetics/system7.png` (see `--s7-*` vars in `src/style.css`); title bar pinstripes and the 11px close/zoom widgets are inline SVG data URIs, with the `#warp` fuzz filter kept on top
 - All pixel FX (chromatic aberration, glitch slices, bad blocks, wave warp) use raw `getImageData`/`putImageData` loops on the main canvas
 
 **Files:**
 - `index.html` — app shell, SVG filter defs, Mac System 7 chrome structure
-- `src/main.js` — all logic (~2600 lines): presets, state, CONTROLS definitions, UI builder, render pipeline, every draw function, Sound engine
+- `src/main.js` — all logic (~2300 lines): presets, state, CONTROLS definitions, UI builder, render pipeline, every draw function, Sound engine, share-URL hash codec
+- `src/statues.js` — generated statue pool (base64 grayscale+alpha cutouts; David from assets/david.png, the rest public-domain Wikimedia Commons)
 - `src/style.css` — all styles for the System 7 / vaporwave chrome
 - `assets/` — `david.png` (source for dithering), ambient audio files
 - `aesthetics/` — mood board images, not used at runtime
