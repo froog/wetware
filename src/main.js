@@ -151,24 +151,18 @@ function applyShareHash() {
   }
 }
 
-async function shareURL() {
-  location.hash = encodeShareHash();
-  const url = location.href;
-  try {
-    await navigator.clipboard.writeText(url);
-    flashCtrlStatus('LINK COPIED');
-  } catch {
-    // Clipboard can be denied on file:// -- the hash is in the URL bar regardless
-    flashCtrlStatus('URL UPDATED');
-  }
-}
-
-function flashCtrlStatus(msg) {
-  const el = document.getElementById('ctrl-status');
-  if (!el) return;
-  const prev = el.textContent;
-  el.textContent = msg;
-  setTimeout(() => { el.textContent = prev; }, 2200);
+// The URL bar tracks state live -- copy it any time, it IS the share link.
+// Debounced so slider drags don't hammer it; replaceState keeps history clean.
+let hashTimer = 0;
+function scheduleHashUpdate() {
+  clearTimeout(hashTimer);
+  hashTimer = setTimeout(() => {
+    const hash = encodeShareHash();
+    const clean = hash === 'w=e30';  // e30 = base64('{}'), i.e. state is at defaults
+    history.replaceState(null, '', clean
+      ? location.pathname + location.search
+      : '#' + hash);
+  }, 250);
 }
 
 //=========================================================================
@@ -350,7 +344,7 @@ function buildControl(section, def) {
     sel.id = `c-${section}-${def.k}`;
     sel.addEventListener('change', () => {
       state[section][def.k] = sel.value;
-      if (section === 'sound') Sound.update(); else requestRender();
+      if (section === 'sound') { Sound.update(); scheduleHashUpdate(); } else requestRender();
     });
     row.append(lbl, sel);
     return row;
@@ -385,7 +379,7 @@ function buildControl(section, def) {
     const n = def.step >= 1 ? parseInt(inp.value, 10) : parseFloat(inp.value);
     state[section][def.k] = n;
     val.textContent = formatVal(n, def.step);
-    if (section === 'sound') Sound.update(); else requestRender();
+    if (section === 'sound') { Sound.update(); scheduleHashUpdate(); } else requestRender();
   });
   row.append(lbl, inp, val);
   return row;
@@ -2317,7 +2311,6 @@ applyPreset('Miami Vice');
 if (applyShareHash()) syncUIFromState();
 document.getElementById('randomize').addEventListener('click', randomize);
 document.getElementById('export').addEventListener('click', exportPNG);
-document.getElementById('share').addEventListener('click', shareURL);
 document.getElementById('sound-play').addEventListener('click', () => {
   Sound.start();
   document.getElementById('snd-status').textContent = 'PLAYING';
@@ -2388,6 +2381,7 @@ const origRequestRender = requestRender;
 requestRender = function() {
   refreshFxStatus();
   if (needsAnimation()) startAnimLoop();
+  scheduleHashUpdate();     // URL bar always carries the current scene
   origRequestRender();
 };
 refreshFxStatus();
