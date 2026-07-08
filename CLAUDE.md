@@ -25,7 +25,7 @@ Zero-dependency vanilla JS / Canvas / Web Audio app. No framework, no tests, no 
 - `CONTROLS` array declaratively defines every dial; `buildUI()` auto-generates all HTML inputs from it at startup
 - Every range/color dial gets a magic-wand toggle (`state.wand`, keyed `'section.dial'`): ranges sine ping-pong across their span starting from the current value, colors orbit the hue wheel (quantized 6° to bound color-keyed caches); `tickWands()` runs at the top of `render()`, wands ride the anim loop via `needsAnimation()`, travel in share URLs, and randomize rolls each at 15%
 - Any control change calls `requestRender()`, which batches via `requestAnimationFrame`
-- Animated features (matrix rain, scan sweep, rolling band, and — when `static.animate` is on — sun bar scroll, sun melt, palm sway) start a continuous `animLoopRunning` RAF loop; it self-terminates when `needsAnimation()` returns false
+- `static.animate` is the master motion switch (mirrored by the `#master-animate` palm toggle under the preset select): it gates the RAF loop, all time-based FX (rain, sweep, band, sun bar scroll, melt, palm sway, blinks) AND the stochastic FX, which draw from a seeded `fxRand` stream whose tick only advances while animate is on — so the scene is a true freeze-frame when off, even if magic wands (the only other loop trigger) keep the RAF loop running
 
 **Render function order** (`render()` ~line 495):
 Scene draw → `applyChromatic` → static/warp chain → ANDROID HUD chain → film grain/CRT chain

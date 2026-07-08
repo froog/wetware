@@ -319,6 +319,34 @@
     align-items: center;
   }
 
+  /* MASTER ANIMATION TOGGLE — big palm-flavored switch under the presets */
+  .master-anim {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: -2px 0 12px;
+    padding: 5px 8px;
+    border: 1.5px solid #000;
+    background: var(--s7-white);
+  }
+  .master-anim label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-chicago);
+    font-size: 15px;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+  .palm-icon {
+    width: 20px;
+    height: 20px;
+    fill: #000;
+    image-rendering: pixelated;
+    flex: 0 0 20px;
+  }
+
   /* MAGIC WAND — auto-animate toggle riding shotgun on every dial.
      Off: black pixel wand. On: colorful, twinkling. */
   button.wand, .wand-spacer {

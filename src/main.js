@@ -688,13 +688,9 @@ function requestRender() {
 // Drives Matrix rain, sweep, rolling band, REC blink, marquee, sun melt/scroll, palm sway, etc.
 let animLoopRunning = false;
 function needsAnimation() {
-  if (state.static.animate) return true;
-  if (anyWandOn()) return true;            // magic wands keep dials moving
-  const a = state.android;
-  if (a.matrix > 0.01) return true;       // rain requires motion
-  if (a.scanSweep) return true;            // sweeps
-  if (a.rollingBand > 0.01) return true;   // rolls
-  return false;
+  if (anyWandOn()) return true;      // per-dial magic wands are explicit opt-ins
+  return state.static.animate;       // master switch gates ALL other motion:
+                                     // rain, sweep, band, static noise, blinks
 }
 function startAnimLoop() {
   if (animLoopRunning) return;
@@ -707,8 +703,17 @@ function startAnimLoop() {
   requestAnimationFrame(tick);
 }
 
+// FX entropy: stochastic effects (glitch, static, grain, bad blocks, rain
+// glyphs) draw from this seeded stream instead of Math.random(). The seed
+// only advances while the master Animation toggle is on, so with it off the
+// noise pattern is a freeze-frame even if wands keep the RAF loop running.
+let fxTick = 0;
+let fxRand = mulberry32(0x5EED);
+
 function render() {
   tickWands(performance.now());
+  if (state.static.animate) fxTick++;
+  fxRand = mulberry32((fxTick * 0x9E3779B9) ^ 0x5EED);
   // Reset scene
   sctx.clearRect(0, 0, W, H);
   drawSky(sctx);
@@ -1768,10 +1773,10 @@ function applyGlitch(c) {
   if (amt < 0.01) return;
   const slices = Math.floor(amt * 14) + 1;
   for (let i = 0; i < slices; i++) {
-    if (Math.random() > 0.65) continue;
-    const sy = Math.floor(Math.random() * H);
-    const sh = Math.floor(Math.random() * 22) + 3;
-    const dx = (Math.random() - 0.5) * amt * 140;
+    if (fxRand() > 0.65) continue;
+    const sy = Math.floor(fxRand() * H);
+    const sh = Math.floor(fxRand() * 22) + 3;
+    const dx = (fxRand() - 0.5) * amt * 140;
     if (sy + sh > H) continue;
     const img = c.getImageData(0, sy, W, sh);
     c.clearRect(0, sy, W, sh);
@@ -1803,7 +1808,7 @@ function applyGrain(c) {
   const d = img.data;
   const strength = amt * 60;
   for (let i = 0; i < d.length; i += 4) {
-    const n = (Math.random() - 0.5) * strength;
+    const n = (fxRand() - 0.5) * strength;
     d[i]   = clamp255(d[i] + n);
     d[i+1] = clamp255(d[i+1] + n);
     d[i+2] = clamp255(d[i+2] + n);
@@ -1835,8 +1840,8 @@ function applyTVStatic(c) {
   const d = img.data;
   const dose = amt * 0.55;
   for (let i = 0; i < d.length; i += 4) {
-    if (Math.random() < dose) {
-      const n = (Math.random() * 255) | 0;
+    if (fxRand() < dose) {
+      const n = (fxRand() * 255) | 0;
       d[i] = n; d[i+1] = n; d[i+2] = n;
     }
   }
@@ -1904,11 +1909,11 @@ function applyBadBlocks(c) {
   const count = Math.floor(amt * 10) + 1;
   c.save();
   for (let i = 0; i < count; i++) {
-    const x = Math.random() * W;
-    const y = Math.random() * H;
-    const w = (20 + Math.random() * 200) * amt;
-    const h = (3 + Math.random() * 28);
-    const r = Math.random();
+    const x = fxRand() * W;
+    const y = fxRand() * H;
+    const w = (20 + fxRand() * 200) * amt;
+    const h = (3 + fxRand() * 28);
+    const r = fxRand();
     c.fillStyle = r < 0.45 ? '#000' :
                   r < 0.75 ? '#ff00ff' :
                   r < 0.92 ? '#00f0ff' : '#0a0014';
@@ -1924,9 +1929,9 @@ function applyTapeBands(c) {
   c.save();
   c.globalCompositeOperation = 'screen';
   for (let i = 0; i < count; i++) {
-    const y = Math.random() * H;
-    const h = 2 + Math.random() * 10;
-    const hue = (Math.random() * 360) | 0;
+    const y = fxRand() * H;
+    const h = 2 + fxRand() * 10;
+    const hue = (fxRand() * 360) | 0;
     c.fillStyle = `hsla(${hue}, 100%, 60%, ${(amt * 0.5).toFixed(2)})`;
     c.fillRect(0, y, W, h);
   }
@@ -1941,8 +1946,8 @@ function applyInvertPulse(c) {
   c.globalCompositeOperation = 'difference';
   c.fillStyle = '#fff';
   for (let i = 0; i < slabs; i++) {
-    const y = Math.random() * H;
-    const h = (10 + Math.random() * 80) * amt;
+    const y = fxRand() * H;
+    const h = (10 + fxRand() * 80) * amt;
     c.fillRect(0, y, W, h);
   }
   c.restore();
@@ -2008,35 +2013,37 @@ function applyMatrixRain(c) {
   if (amt < 0.01) return;
   const cellSize = 14;
   const cols = Math.floor(W / cellSize);
-  if (matrixDrops.length !== cols) {
-    matrixDrops = new Array(cols).fill(0).map(() => Math.random() * H);
+  const fresh = matrixDrops.length !== cols;
+  if (fresh) {
+    matrixDrops = new Array(cols).fill(0).map(() => fxRand() * H);
   }
-  // Fade for trail
-  matrixCtx.fillStyle = 'rgba(0,0,0,0.10)';
-  matrixCtx.fillRect(0, 0, W, H);
-  matrixCtx.font = `${cellSize}px "VT323", "Courier New", monospace`;
+  // Only advance the rain while the master Animation toggle is on --
+  // otherwise the buffer holds a freeze-frame (wands may keep the loop hot)
+  if (state.static.animate || fresh) {
+    // Fade for trail
+    matrixCtx.fillStyle = 'rgba(0,0,0,0.10)';
+    matrixCtx.fillRect(0, 0, W, H);
+    matrixCtx.font = `${cellSize}px "VT323", "Courier New", monospace`;
 
-  const chars = MATRIX_CHARSETS[state.android.matrixChars] || MATRIX_CHARSETS.kana;
-  const color = state.android.matrixColor;
-  const stepBase = cellSize * 1.4 * state.android.matrixSpeed;
+    const chars = MATRIX_CHARSETS[state.android.matrixChars] || MATRIX_CHARSETS.kana;
+    const color = state.android.matrixColor;
+    const stepBase = cellSize * 1.4 * state.android.matrixSpeed;
 
-  for (let i = 0; i < cols; i++) {
-    if (Math.random() > amt * 0.6 + 0.4) {
-      // Always draw current head, even if column not advancing this frame
-    }
-    const x = i * cellSize;
-    const y = matrixDrops[i];
-    const ch = chars[Math.floor(Math.random() * chars.length)];
-    matrixCtx.fillStyle = color;
-    matrixCtx.fillText(ch, x, y);
-    // White-hot head occasionally
-    if (Math.random() < 0.08) {
-      matrixCtx.fillStyle = '#fff';
+    for (let i = 0; i < cols; i++) {
+      const x = i * cellSize;
+      const y = matrixDrops[i];
+      const ch = chars[Math.floor(fxRand() * chars.length)];
+      matrixCtx.fillStyle = color;
       matrixCtx.fillText(ch, x, y);
-    }
-    matrixDrops[i] += stepBase * (0.6 + Math.random() * 0.8);
-    if (matrixDrops[i] > H && Math.random() < 0.025) {
-      matrixDrops[i] = -cellSize * Math.floor(Math.random() * 8);
+      // White-hot head occasionally
+      if (fxRand() < 0.08) {
+        matrixCtx.fillStyle = '#fff';
+        matrixCtx.fillText(ch, x, y);
+      }
+      matrixDrops[i] += stepBase * (0.6 + fxRand() * 0.8);
+      if (matrixDrops[i] > H && fxRand() < 0.025) {
+        matrixDrops[i] = -cellSize * Math.floor(fxRand() * 8);
+      }
     }
   }
 
@@ -2483,6 +2490,14 @@ applyPreset('Miami Vice');
 if (applyShareHash()) syncUIFromState();
 document.getElementById('randomize').addEventListener('click', randomize);
 document.getElementById('export').addEventListener('click', exportPNG);
+// Master animation toggle -- same flag as the STATIC panel's Animate box
+const masterAnimate = document.getElementById('master-animate');
+masterAnimate.checked = state.static.animate;
+masterAnimate.addEventListener('input', () => {
+  state.static.animate = masterAnimate.checked;
+  syncUIFromState();
+  requestRender();
+});
 document.getElementById('sound-play').addEventListener('click', () => {
   Sound.start();
   document.getElementById('snd-status').textContent = 'PLAYING';
@@ -2548,6 +2563,9 @@ function refreshFxStatus() {
     const aCnt = Object.keys(droids).filter(k => state.android[k] > 0.05).length + droidFlags.length;
     aBar.textContent = aCnt > 0 ? `${aCnt} ONLINE` : 'DORMANT';
   }
+  // Master toggle mirrors static.animate however it was changed
+  const mAnim = document.getElementById('master-animate');
+  if (mAnim) mAnim.checked = state.static.animate;
 }
 const origRequestRender = requestRender;
 requestRender = function() {
