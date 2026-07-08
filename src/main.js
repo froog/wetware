@@ -104,10 +104,11 @@ const state = {
     lfoRate: 0.18,
     reverb: 0.6,
   },
+  wand: {},  // magic-wand auto-animate flags, keyed 'section.dial' -- filled from CONTROLS below
 };
 
-// Pristine copy for share-URL diffing (must be captured before any preset/hash lands)
-const DEFAULT_STATE = JSON.parse(JSON.stringify(state));
+// Pristine copy for share-URL diffing; assigned after CONTROLS seeds state.wand
+let DEFAULT_STATE = null;
 
 //=========================================================================
 // SHARE URL (state lives in the hash -- no server, no storage)
@@ -291,6 +292,110 @@ const CONTROLS = {
   ],
 };
 
+// Every range/color dial gets a magic-wand auto-animate flag (default off)
+for (const [section, defs] of Object.entries(CONTROLS)) {
+  for (const def of defs) {
+    if (def.type === 'range' || def.type === 'color') {
+      state.wand[`${section}.${def.k}`] = false;
+    }
+  }
+}
+DEFAULT_STATE = JSON.parse(JSON.stringify(state));
+
+//=========================================================================
+// MAGIC WAND -- per-dial auto-animation.
+// Ranges ping-pong across their full span starting from the current value
+// (sine ease); colors orbit the hue wheel like a rainbow hue slider.
+//=========================================================================
+const wandAnims = {};   // 'section.k' -> { section, def, base, t0, ... }
+
+function startWandAnim(section, def) {
+  const key = `${section}.${def.k}`;
+  const v = state[section][def.k];
+  if (def.type === 'color') {
+    const { h, s, l } = hexToHsl(v);
+    wandAnims[key] = {
+      section, def, base: v,
+      // Washed-out bases (white/grey) snap to a vivid rainbow lane
+      h0: h, s: s < 30 ? 90 : s, l: s < 30 ? 60 : Math.min(75, Math.max(35, l)),
+      speed: 30 + Math.random() * 25,               // deg/sec around the wheel
+    };
+  } else {
+    const span = def.max - def.min;
+    const p0 = Math.min(1, Math.max(0, (v - def.min) / span));
+    wandAnims[key] = {
+      section, def, base: v,
+      phase: Math.asin(p0 * 2 - 1),                 // sine starts exactly at the current value
+      speed: (0.7 + Math.random() * 0.6) * (Math.PI * 2 / 9),  // full sweep ~6-13s, detuned per dial
+    };
+  }
+  wandAnims[key].t0 = performance.now();
+}
+
+function stopWandAnim(section, def, restore) {
+  const key = `${section}.${def.k}`;
+  const a = wandAnims[key];
+  delete wandAnims[key];
+  if (a && restore) {
+    state[section][def.k] = a.base;
+    syncOneControl(section, def);
+  }
+}
+
+function tickWands(now) {
+  let soundTouched = false;
+  for (const key of Object.keys(state.wand)) {
+    if (!state.wand[key]) continue;
+    const a = wandAnims[key];
+    if (!a) { // wand arrived via share hash / randomize without a click
+      const [sec, k] = key.split('.');
+      const def = (CONTROLS[sec] || []).find(d => d.k === k);
+      if (def) startWandAnim(sec, def);
+      continue;
+    }
+    const t = (now - a.t0) / 1000;
+    let v;
+    if (a.def.type === 'color') {
+      // Quantize to 6 deg so color-keyed caches (statues) stay bounded
+      const h = Math.round(((a.h0 + t * a.speed) % 360) / 6) * 6;
+      v = hslToHex(h, a.s, a.l);
+    } else {
+      const p = 0.5 + 0.5 * Math.sin(a.phase + t * a.speed);
+      v = a.def.min + p * (a.def.max - a.def.min);
+      v = a.def.step >= 1 ? Math.round(v) : Math.round(v / a.def.step) * a.def.step;
+    }
+    state[a.section][a.def.k] = v;
+    syncOneControl(a.section, a.def);
+    if (a.section === 'sound') soundTouched = true;
+  }
+  if (soundTouched) Sound.update();
+}
+
+function anyWandOn() {
+  return Object.values(state.wand).some(Boolean);
+}
+
+function syncOneControl(section, def) {
+  const el = document.getElementById(`c-${section}-${def.k}`);
+  if (!el) return;
+  el.value = state[section][def.k];
+  if (def.type === 'range') {
+    const sib = el.parentElement.querySelector('.val');
+    if (sib) sib.textContent = formatVal(state[section][def.k], def.step);
+  }
+}
+
+function syncWandButtons() {
+  for (const [key, on] of Object.entries(state.wand)) {
+    const btn = document.getElementById(`w-${key.replace('.', '-')}`);
+    if (btn) btn.classList.toggle('on', !!on);
+    if (!on) {
+      const [sec, k] = key.split('.');
+      if (wandAnims[key]) stopWandAnim(sec, (CONTROLS[sec] || []).find(d => d.k === k), false);
+    }
+  }
+}
+
 //=========================================================================
 // BUILD UI
 //=========================================================================
@@ -311,6 +416,25 @@ function buildUI() {
     psel.appendChild(opt);
   }
   psel.addEventListener('change', () => { applyPreset(psel.value); requestRender(); });
+}
+
+function makeWand(section, def) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'wand';
+  btn.id = `w-${section}-${def.k}`;
+  btn.title = 'Magic wand: auto-animate this dial';
+  btn.addEventListener('click', () => {
+    const key = `${section}.${def.k}`;
+    const on = !state.wand[key];
+    state.wand[key] = on;
+    btn.classList.toggle('on', on);
+    if (on) startWandAnim(section, def);
+    else stopWandAnim(section, def, true);   // hand the dial back where it started
+    if (section === 'sound') Sound.update();
+    requestRender();                          // kicks the anim loop via needsAnimation()
+  });
+  return btn;
 }
 
 function buildControl(section, def) {
@@ -346,7 +470,9 @@ function buildControl(section, def) {
       state[section][def.k] = sel.value;
       if (section === 'sound') { Sound.update(); scheduleHashUpdate(); } else requestRender();
     });
-    row.append(lbl, sel);
+    const spacer = document.createElement('span');
+    spacer.className = 'wand-spacer';
+    row.append(spacer, lbl, sel);
     return row;
   }
   if (def.type === 'color') {
@@ -359,7 +485,7 @@ function buildControl(section, def) {
     inp.value = v;
     inp.id = `c-${section}-${def.k}`;
     inp.addEventListener('input', () => { state[section][def.k] = inp.value; requestRender(); });
-    row.append(lbl, inp);
+    row.append(makeWand(section, def), lbl, inp);
     return row;
   }
   // range
@@ -381,7 +507,7 @@ function buildControl(section, def) {
     val.textContent = formatVal(n, def.step);
     if (section === 'sound') { Sound.update(); scheduleHashUpdate(); } else requestRender();
   });
-  row.append(lbl, inp, val);
+  row.append(makeWand(section, def), lbl, inp, val);
   return row;
 }
 
@@ -406,6 +532,7 @@ function syncUIFromState() {
       }
     }
   }
+  syncWandButtons();
 }
 
 function applyPreset(name) {
@@ -526,6 +653,15 @@ function randomize() {
   state.android.anaglyph    = Math.random() > 0.8 ? rand(0.15, 0.5) : 0;
   state.android.ascii       = Math.random() > 0.85;
   state.android.asciiSize   = Math.floor(rand(8, 16));
+  // Magic wands: each dial has a 15% chance to come alive
+  for (const key of Object.keys(state.wand)) {
+    const was = state.wand[key];
+    state.wand[key] = Math.random() < 0.15;
+    if (was && !state.wand[key]) {
+      const [sec, k] = key.split('.');
+      stopWandAnim(sec, (CONTROLS[sec] || []).find(d => d.k === k), false);
+    }
+  }
   syncUIFromState();
   requestRender();
 }
@@ -553,6 +689,7 @@ function requestRender() {
 let animLoopRunning = false;
 function needsAnimation() {
   if (state.static.animate) return true;
+  if (anyWandOn()) return true;            // magic wands keep dials moving
   const a = state.android;
   if (a.matrix > 0.01) return true;       // rain requires motion
   if (a.scanSweep) return true;            // sweeps
@@ -571,6 +708,7 @@ function startAnimLoop() {
 }
 
 function render() {
+  tickWands(performance.now());
   // Reset scene
   sctx.clearRect(0, 0, W, H);
   drawSky(sctx);
@@ -1115,6 +1253,9 @@ function getStatue(key) {
   const style = state.objects.statueStyle;
   const ck = `${key}|${color}|${style}`;
   if (!statueCache[ck]) {
+    // Wand-animated tints churn colors; flush before the cache balloons
+    const keys = Object.keys(statueCache);
+    if (keys.length > 160) for (const k of keys) delete statueCache[k];
     const processed = processStatue(key, color, style);
     if (!processed) return null;
     statueCache[ck] = processed;
@@ -1552,6 +1693,37 @@ function drawSunRays(c) {
 //-------------------------------------------------------------------------
 // COLOR HELPERS
 //-------------------------------------------------------------------------
+function hexToHsl(hex) {
+  let { r, g, b } = hexToRgb(hex);
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  const l = (mx + mn) / 2;
+  if (mx === mn) return { h: 0, s: 0, l: l * 100 };
+  const d = mx - mn;
+  const s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h;
+  if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0));
+  else if (mx === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return { h: h * 60, s: s * 100, l: l * 100 };
+}
+
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360; s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r, g, b;
+  if (h < 60)       [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else              [r, g, b] = [c, 0, x];
+  const to2 = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${to2(r)}${to2(g)}${to2(b)}`;
+}
+
 function lighten(hex, amt) {
   const { r, g, b } = hexToRgb(hex);
   return `rgb(${Math.min(255, r + 255 * amt) | 0},${Math.min(255, g + 255 * amt) | 0},${Math.min(255, b + 255 * amt) | 0})`;

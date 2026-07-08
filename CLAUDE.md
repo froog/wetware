@@ -23,6 +23,7 @@ Zero-dependency vanilla JS / Canvas / Web Audio app. No framework, no tests, no 
 **State → UI → Render loop:**
 - `state` object is the single source of truth (sky, sun, mountains, grid, palms, objects, fx, static, android, sound sections)
 - `CONTROLS` array declaratively defines every dial; `buildUI()` auto-generates all HTML inputs from it at startup
+- Every range/color dial gets a magic-wand toggle (`state.wand`, keyed `'section.dial'`): ranges sine ping-pong across their span starting from the current value, colors orbit the hue wheel (quantized 6° to bound color-keyed caches); `tickWands()` runs at the top of `render()`, wands ride the anim loop via `needsAnimation()`, travel in share URLs, and randomize rolls each at 15%
 - Any control change calls `requestRender()`, which batches via `requestAnimationFrame`
 - Animated features (matrix rain, scan sweep, rolling band, and — when `static.animate` is on — sun bar scroll, sun melt, palm sway) start a continuous `animLoopRunning` RAF loop; it self-terminates when `needsAnimation()` returns false
 
