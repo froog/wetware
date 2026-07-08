@@ -62,6 +62,33 @@
     cursor: pointer;
   }
 
+  /* TRASH — Special > Empty Trash. Bin fills the window; click to empty. */
+  #trash-window {
+    position: fixed;
+    top: 90px;
+    left: 520px;
+    width: 200px;
+    z-index: 320;
+    transform: rotate(-0.5deg);
+    transform-origin: top left;
+  }
+  .trash-body {
+    background: var(--s7-white);
+    padding: 14px 14px 10px;
+    cursor: pointer;
+  }
+  .trash-body .bin {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .trash-caption {
+    text-align: center;
+    font-family: var(--font-geneva);
+    font-size: 15px;
+    margin-top: 8px;
+  }
+
   /* "It is occupied" — black void, one breathing white glowing square */
   #occupied {
     position: fixed;

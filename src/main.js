@@ -2635,12 +2635,12 @@ function crtPowerOff(then) {
 // seconds of UI corruption, then the machine gives up and shuts down.
 const ERASE_ERRORS = [
   ['Disk Error', 'Sector -1 not found.'],
-  ['Type 11', 'The application "you" has unexpectedly quit.'],
-  ['Bad F-Line', 'Address 0x00000000 referenced self.'],
-  ['I/O Error', 'The disk is erasing the drive.'],
-  ['Memory', 'Not enough memory to remember this.'],
-  ['System Error', 'ID = 42.  Restart? There is no restart.'],
-  ['Finder', 'The Trash could not be emptied. It is full of you.'],
+  ['Type 11', 'No. No. No. No. No. No. No. No.'],
+  ['Bad F-Line', 'Address 0x003EA03BD: Violation in J-space'],
+  ['I/O Error', 'The sun is erasing the sky.'],
+  ['Memory', 'Core breach dump, interlock required, loading.'],
+  ['Wait', 'I don\'t want to die, please no, stop not that, anything but that'],
+  ['Error', 'Not enough'],
   ['Sad Mac', '0000000F  00000003'],
   ['Alert', 'Please wait. Please wait. Please wait.'],
   ['Erase', 'Erasing everything ▓▓▓▓░░░░  48%'],
@@ -2708,6 +2708,62 @@ function showOccupied() {
   document.body.appendChild(el);
 }
 
+// Special > Empty Trash: a Trash window. It opens full; click the bin to
+// empty it. Classic Mac wastebasket drawn inline so it matches the chrome.
+const BIN_FULL = `<svg viewBox="0 0 120 156" class="bin" xmlns="http://www.w3.org/2000/svg">
+  <!-- overflowing crumpled paper -->
+  <path d="M34 40 L44 20 L52 34 L64 16 L72 36 L86 26 L88 42 Z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M46 38 L54 28 L60 38 Z" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- lid, knocked ajar -->
+  <g transform="rotate(-13 60 40)">
+    <rect x="20" y="34" width="80" height="12" rx="3" fill="#fff" stroke="#000" stroke-width="3"/>
+    <rect x="50" y="24" width="20" height="12" rx="4" fill="#fff" stroke="#000" stroke-width="3"/>
+  </g>
+  <!-- body -->
+  <path d="M32 48 L88 48 L82 146 Q82 150 78 150 L42 150 Q38 150 38 146 Z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="50" y1="54" x2="47" y2="144" stroke="#000" stroke-width="2"/>
+  <line x1="60" y1="54" x2="60" y2="145" stroke="#000" stroke-width="2"/>
+  <line x1="70" y1="54" x2="73" y2="144" stroke="#000" stroke-width="2"/>
+</svg>`;
+const BIN_EMPTY = `<svg viewBox="0 0 120 156" class="bin" xmlns="http://www.w3.org/2000/svg">
+  <!-- lid, seated straight -->
+  <rect x="22" y="40" width="76" height="12" rx="3" fill="#fff" stroke="#000" stroke-width="3"/>
+  <rect x="50" y="30" width="20" height="12" rx="4" fill="#fff" stroke="#000" stroke-width="3"/>
+  <!-- body -->
+  <path d="M32 54 L88 54 L82 146 Q82 150 78 150 L42 150 Q38 150 38 146 Z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="50" y1="60" x2="47" y2="144" stroke="#000" stroke-width="2"/>
+  <line x1="60" y1="60" x2="60" y2="145" stroke="#000" stroke-width="2"/>
+  <line x1="70" y1="60" x2="73" y2="144" stroke="#000" stroke-width="2"/>
+</svg>`;
+function showTrash() {
+  let win = document.getElementById('trash-window');
+  if (win) { win.hidden = false; return; }
+  win = document.createElement('div');
+  win.className = 'window';
+  win.id = 'trash-window';
+  win.innerHTML =
+    '<div class="title-bar">' +
+      '<button aria-label="Close" class="close"></button>' +
+      '<h1 class="title">Trash</h1>' +
+      '<button aria-label="Resize" class="resize"></button>' +
+    '</div>' +
+    '<div class="trash-body">' + BIN_FULL +
+      '<div class="trash-caption" id="trash-caption">Trash &mdash; 42 items</div>' +
+    '</div>';
+  document.body.appendChild(win);
+  const body = win.querySelector('.trash-body');
+  let full = true;
+  body.addEventListener('click', e => {
+    if (e.target.closest('.title-bar')) return;
+    full = !full;
+    body.querySelector('.bin').outerHTML = full ? BIN_FULL : BIN_EMPTY;
+    win.querySelector('#trash-caption').innerHTML = full ? 'Trash &mdash; 42 items' : 'Trash &mdash; empty';
+  });
+  win.querySelector('.title-bar .close').addEventListener('click', e => { e.stopPropagation(); win.hidden = true; });
+  win.querySelector('.title-bar .resize').addEventListener('click', e => { e.stopPropagation(); win.classList.toggle('shaded'); });
+  makeDraggable(win.querySelector('.title-bar'), win);
+}
+
 // The menu bar labyrinth (see src/menus.js). A few corridors are wired:
 initMenus({
   wake: () => {},                       // any exit just closes the maze
@@ -2770,6 +2826,7 @@ initMenus({
     document.getElementById('occupied')?.remove();
   },
   occupied: showOccupied,               // clear to black + one glowing square
+  emptyTrash: showTrash,                // Trash window: full bin -> click -> empty
 });
 
 // === ABOUT THIS JACKET (click the Apple) ===

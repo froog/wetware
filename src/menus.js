@@ -457,7 +457,7 @@ export const MENU_DEFS = [
   {
     label: 'Special',
     items: [
-      'Empty Trash',
+      { label: 'Empty Trash', action: 'emptyTrash' },
       { label: 'Erase Disk...', action: 'eraseDisk' },
       '-',
       { label: 'Restart', action: 'restart' },
