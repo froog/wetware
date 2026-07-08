@@ -66,21 +66,22 @@
   #trash-window {
     position: fixed;
     top: 90px;
-    left: 520px;
-    width: 200px;
+    left: 470px;
+    width: 340px;
     z-index: 320;
     transform: rotate(-0.5deg);
     transform-origin: top left;
   }
   .trash-body {
     background: var(--s7-white);
-    padding: 14px 14px 10px;
+    padding: 12px 12px 8px;
     cursor: pointer;
   }
   .trash-body .bin {
     display: block;
     width: 100%;
     height: auto;
+    border: 1px solid #000;
   }
   .trash-caption {
     text-align: center;
@@ -508,7 +509,7 @@
   /* BUTTONS — chunky Mac classic with vaporwave tint */
   .top-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 8px;
     margin-bottom: 10px;
   }

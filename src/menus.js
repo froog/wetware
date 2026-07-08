@@ -192,8 +192,7 @@ export const MENU_DEFS = [
       {
         label: 'Save As...',
         items: [
-          'vaporwave.png',
-          'vaporwave.psd',
+          { label: 'vaporwave.png', action: 'savePng', domId: 'save-png' },
           '-',
           {
             label: 'self.iso',
@@ -662,6 +661,7 @@ export function initMenus(actions) {
       const item = document.createElement('div');
       item.className = 'menu-item' + (def.cls ? ' ' + def.cls : '');
       item.textContent = def.label;
+      if (def.domId) item.dataset.menuId = def.domId;   // for live label updates
       if (def.items) {
         item.classList.add('has-sub');
         const sub = buildDrop(def.items);

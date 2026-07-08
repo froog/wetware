@@ -3,6 +3,54 @@ import { makeDraggable } from './drag.js';
 import { initWinamp } from './winamp.js';
 import { STATUE_SOURCES } from './statues.js';
 import { initMenus } from './menus.js';
+
+//=========================================================================
+// SFX -- real recordings in assets/sfx/ (sourced, not synthesized).
+// Web Audio's autoplay gate means the startup chime may be deferred to the
+// first user gesture; everything else is triggered by clicks so it's fine.
+//=========================================================================
+const SFX = {
+  _crunch: [1, 2, 3, 4, 5].map(n => `assets/sfx/crunch${n}.mp3`),
+  _startupDone: false,
+  startup() {
+    if (this._startupDone) return;
+    const a = new Audio('assets/sfx/startup.mp3');
+    a.volume = 0.7;
+    a.play().then(() => { this._startupDone = true; }).catch(() => {
+      // Autoplay blocked on cold load -- fire on the first gesture instead
+      const once = () => { a.play().catch(() => {}); this._startupDone = true;
+        window.removeEventListener('pointerdown', once);
+        window.removeEventListener('keydown', once); };
+      window.addEventListener('pointerdown', once, { once: true });
+      window.addEventListener('keydown', once, { once: true });
+    });
+  },
+  crunch() {
+    const a = new Audio(this._crunch[Math.floor(Math.random() * this._crunch.length)]);
+    a.volume = 0.8;
+    a.play().catch(() => {});   // overlaps fine -- fresh element per bite
+  },
+};
+
+// Erase-disk hiss: loop the noise and ramp its volume up over `ms`.
+let hissEl = null;
+function startHiss(ms) {
+  stopHiss();
+  hissEl = new Audio('assets/sfx/erase-hiss.mp3');
+  hissEl.loop = true;
+  hissEl.volume = 0;
+  hissEl.play().catch(() => {});
+  const t0 = performance.now();
+  const ramp = () => {
+    if (!hissEl) return;
+    hissEl.volume = Math.min(1, (performance.now() - t0) / ms);
+    if (hissEl.volume < 1) requestAnimationFrame(ramp);
+  };
+  requestAnimationFrame(ramp);
+}
+function stopHiss() {
+  if (hissEl) { hissEl.pause(); hissEl = null; }
+}
 // PRESETS
 //=========================================================================
 const PRESETS = {
@@ -159,6 +207,22 @@ function applyShareHash() {
   }
 }
 
+// A short, stable code derived from the current scene (its share hash), used
+// to name exported PNGs so a saved file maps back to a shareable scene.
+function sceneShortHash() {
+  const h = encodeShareHash();            // 'w=<base64url diff>'
+  let x = 0x811c9dc5;
+  for (let i = 0; i < h.length; i++) { x ^= h.charCodeAt(i); x = Math.imul(x, 0x01000193); }
+  return (x >>> 0).toString(16).padStart(8, '0').slice(0, 6);
+}
+function sceneFileName() { return `vaporwave-${sceneShortHash()}.png`; }
+
+// Keep the Save As > *.png menu label in sync with the current scene hash
+function updateSaveLabel() {
+  const el = document.querySelector('.menu-item[data-menu-id="save-png"]');
+  if (el) el.textContent = sceneFileName();
+}
+
 // The URL bar tracks state live -- copy it any time, it IS the share link.
 // Debounced so slider drags don't hammer it; replaceState keeps history clean.
 let hashTimer = 0;
@@ -170,6 +234,7 @@ function scheduleHashUpdate() {
     history.replaceState(null, '', clean
       ? location.pathname + location.search
       : '#' + hash);
+    updateSaveLabel();
   }, 250);
 }
 
@@ -2570,7 +2635,7 @@ function exportPNG() {
   const url = canvas.toDataURL('image/png');
   const a = document.createElement('a');
   a.href = url;
-  a.download = `wetware-vaporwave-${Date.now()}.png`;
+  a.download = sceneFileName();   // vaporwave-<scene hash>.png
   a.click();
 }
 
@@ -2582,7 +2647,6 @@ document.getElementById('preset').value = 'Miami Vice';
 applyPreset('Miami Vice');
 if (applyShareHash()) syncUIFromState();
 document.getElementById('randomize').addEventListener('click', randomize);
-document.getElementById('export').addEventListener('click', exportPNG);
 // Master animation toggle -- same flag as the STATIC panel's Animate box
 const masterAnimate = document.getElementById('master-animate');
 masterAnimate.checked = state.static.animate;
@@ -2651,6 +2715,7 @@ function eraseDisk() {
   storm.id = 'erase-storm';
   document.body.appendChild(storm);
   document.body.classList.add('glitching');
+  startHiss(3200);   // hiss swells louder as the disk "erases"
 
   let n = 0;
   const spawn = () => {
@@ -2673,6 +2738,7 @@ function eraseDisk() {
   // A few seconds of chaos, then the OS collapses into the CRT power-off
   setTimeout(() => {
     document.body.classList.remove('glitching');
+    stopHiss();
     crtPowerOff(() => storm.remove());
   }, 3200);
 }
@@ -2708,33 +2774,8 @@ function showOccupied() {
   document.body.appendChild(el);
 }
 
-// Special > Empty Trash: a Trash window. It opens full; click the bin to
-// empty it. Classic Mac wastebasket drawn inline so it matches the chrome.
-const BIN_FULL = `<svg viewBox="0 0 120 156" class="bin" xmlns="http://www.w3.org/2000/svg">
-  <!-- overflowing crumpled paper -->
-  <path d="M34 40 L44 20 L52 34 L64 16 L72 36 L86 26 L88 42 Z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M46 38 L54 28 L60 38 Z" fill="none" stroke="#000" stroke-width="2"/>
-  <!-- lid, knocked ajar -->
-  <g transform="rotate(-13 60 40)">
-    <rect x="20" y="34" width="80" height="12" rx="3" fill="#fff" stroke="#000" stroke-width="3"/>
-    <rect x="50" y="24" width="20" height="12" rx="4" fill="#fff" stroke="#000" stroke-width="3"/>
-  </g>
-  <!-- body -->
-  <path d="M32 48 L88 48 L82 146 Q82 150 78 150 L42 150 Q38 150 38 146 Z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-  <line x1="50" y1="54" x2="47" y2="144" stroke="#000" stroke-width="2"/>
-  <line x1="60" y1="54" x2="60" y2="145" stroke="#000" stroke-width="2"/>
-  <line x1="70" y1="54" x2="73" y2="144" stroke="#000" stroke-width="2"/>
-</svg>`;
-const BIN_EMPTY = `<svg viewBox="0 0 120 156" class="bin" xmlns="http://www.w3.org/2000/svg">
-  <!-- lid, seated straight -->
-  <rect x="22" y="40" width="76" height="12" rx="3" fill="#fff" stroke="#000" stroke-width="3"/>
-  <rect x="50" y="30" width="20" height="12" rx="4" fill="#fff" stroke="#000" stroke-width="3"/>
-  <!-- body -->
-  <path d="M32 54 L88 54 L82 146 Q82 150 78 150 L42 150 Q38 150 38 146 Z" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-  <line x1="50" y1="60" x2="47" y2="144" stroke="#000" stroke-width="2"/>
-  <line x1="60" y1="60" x2="60" y2="145" stroke="#000" stroke-width="2"/>
-  <line x1="70" y1="60" x2="73" y2="144" stroke="#000" stroke-width="2"/>
-</svg>`;
+// Special > Empty Trash: a Trash window showing the full bin photo that
+// fills the window; click it to reveal the empty bin. (assets/bin-*.png)
 function showTrash() {
   let win = document.getElementById('trash-window');
   if (win) { win.hidden = false; return; }
@@ -2747,7 +2788,8 @@ function showTrash() {
       '<h1 class="title">Trash</h1>' +
       '<button aria-label="Resize" class="resize"></button>' +
     '</div>' +
-    '<div class="trash-body">' + BIN_FULL +
+    '<div class="trash-body">' +
+      '<img class="bin" id="bin-img" src="assets/bin-full.png" alt="trash bin" title="Empty the trash">' +
       '<div class="trash-caption" id="trash-caption">Trash &mdash; 42 items</div>' +
     '</div>';
   document.body.appendChild(win);
@@ -2756,7 +2798,7 @@ function showTrash() {
   body.addEventListener('click', e => {
     if (e.target.closest('.title-bar')) return;
     full = !full;
-    body.querySelector('.bin').outerHTML = full ? BIN_FULL : BIN_EMPTY;
+    win.querySelector('#bin-img').src = full ? 'assets/bin-full.png' : 'assets/bin-empty.png';
     win.querySelector('#trash-caption').innerHTML = full ? 'Trash &mdash; 42 items' : 'Trash &mdash; empty';
   });
   win.querySelector('.title-bar .close').addEventListener('click', e => { e.stopPropagation(); win.hidden = true; });
@@ -2827,7 +2869,9 @@ initMenus({
   },
   occupied: showOccupied,               // clear to black + one glowing square
   emptyTrash: showTrash,                // Trash window: full bin -> click -> empty
+  savePng: exportPNG,                   // File > Save As > vaporwave-<hash>.png
 });
+updateSaveLabel();
 
 // === ABOUT THIS JACKET (click the Apple) ===
 const APPLE_COUNT = 41;
@@ -2844,6 +2888,7 @@ document.querySelector('.osmenubar .apple').addEventListener('click', e => {
   jacketWin.hidden = !jacketWin.hidden;
 });
 jacketImg.addEventListener('click', () => {
+  SFX.crunch();                         // a random crunch on every apple
   let n;
   do { n = Math.floor(Math.random() * APPLE_COUNT); } while (n === appleIdx);
   showApple(n);
@@ -2942,6 +2987,7 @@ if (needsAnimation()) startAnimLoop();
 
 // === BOOT INTRO ===
 function runBoot() {
+  SFX.startup();   // the startup chime (deferred to first gesture if autoplay-blocked)
   const lines = [
     'WETWARE.OS  v7.5.3',
     'Copyright (c) 1989-2026 wetware.sys',
