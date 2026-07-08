@@ -2557,6 +2557,9 @@ requestRender = function() {
   origRequestRender();
 };
 refreshFxStatus();
+// A share URL can arrive with animation already on (wands, animate flag,
+// rain...) -- the boot render() bypasses the wrapper, so kick the loop here
+if (needsAnimation()) startAnimLoop();
 
 // === BOOT INTRO ===
 (function bootIntro() {
