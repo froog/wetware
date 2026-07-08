@@ -355,6 +355,19 @@
   .master-anim input:checked + label .palm-icon .c { fill: #ff2d95; }
   .master-anim input:checked + label .palm-icon .t { fill: #ffb700; }
   .master-anim input:checked + label .palm-icon .g { fill: #00f0ff; }
+  /* Overdrive mushroom cloud runs hot */
+  .master-anim input:checked + label .palm-icon .m { fill: #ff8500; }
+  .master-anim input:checked + label .palm-icon .s { fill: #ffd60a; }
+  .master-anim input:checked + label .palm-icon .b { fill: #ff2d95; }
+
+  /* Expanding advanced panel under the Overdrive switch */
+  .overdrive-panel {
+    margin: -13px 0 12px;
+    padding: 8px 8px 4px;
+    border: 1.5px solid #000;
+    border-top: 1.5px dotted #000;
+    background: var(--s7-white);
+  }
 
   /* MAGIC WAND — auto-animate toggle riding shotgun on every dial.
      Off: black pixel wand. On: colorful, twinkling. */

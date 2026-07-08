@@ -104,6 +104,12 @@ const state = {
     lfoRate: 0.18,
     reverb: 0.6,
   },
+  overdrive: {
+    enabled: false,   // the WARNING !! switch -- gates everything below
+    chaos: 0,         // % chance per count-ish dial that randomize blows its limits out
+    hyperwarp: 0,     // liquid warp + diffusion over the whole frame
+    timelord: 1,      // animation speed multiplier
+  },
   wand: {},  // magic-wand auto-animate flags, keyed 'section.dial' -- filled from CONTROLS below
 };
 
@@ -276,6 +282,11 @@ const CONTROLS = {
     { k: 'scanSweep',   type: 'check',  label: 'Scan sweep' },
     { k: 'anaglyph',    type: 'range',  label: 'Anaglyph 3D',  min: 0, max: 1, step: 0.01 },
   ],
+  overdrive: [
+    { k: 'chaos',     type: 'range', label: 'Chaos',     min: 0, max: 100, step: 1 },
+    { k: 'hyperwarp', type: 'range', label: 'Hyperwarp', min: 0, max: 1, step: 0.01 },
+    { k: 'timelord',  type: 'range', label: 'Timelord',  min: 0.1, max: 4, step: 0.05 },
+  ],
   static: [
     { k: 'tvStatic',    type: 'range', label: 'TV static',    min: 0, max: 1, step: 0.01 },
     { k: 'rgbGhost',    type: 'range', label: 'RGB ghost',    min: 0, max: 1, step: 0.01 },
@@ -346,7 +357,7 @@ let lastWandTick = 0;
 function tickWands(now) {
   // Master animation off = global pause; wands hold their value and phase
   if (!state.static.animate) { lastWandTick = 0; return; }
-  const dt = lastWandTick ? Math.min(0.1, (now - lastWandTick) / 1000) : 0;
+  const dt = (lastWandTick ? Math.min(0.1, (now - lastWandTick) / 1000) : 0) * timelordFactor();
   lastWandTick = now;
   let soundTouched = false;
   for (const key of Object.keys(state.wand)) {
@@ -655,6 +666,33 @@ function randomize() {
   state.android.anaglyph    = Math.random() > 0.8 ? rand(0.15, 0.5) : 0;
   state.android.ascii       = Math.random() > 0.85;
   state.android.asciiSize   = Math.floor(rand(8, 16));
+  // OVERDRIVE CHAOS: each count-ish dial has a chaos% chance of a
+  // blown-out roll far past its slider's normal ceiling
+  if (state.overdrive.enabled && state.overdrive.chaos > 0) {
+    const p = state.overdrive.chaos / 100;
+    const CHAOS_ROLLS = {
+      'sun.barCount':        () => Math.floor(rand(30, 90)),
+      'sun.radius':          () => rand(0.4, 0.75),
+      'mountains.layers':    () => Math.floor(rand(6, 14)),
+      'grid.density':        () => Math.floor(rand(40, 110)),
+      'palms.count':         () => Math.floor(rand(20, 70)),
+      'palms.fronds':        () => Math.floor(rand(20, 48)),
+      'palms.scale':         () => rand(1.8, 3.2),
+      'objects.statueCount': () => Math.floor(rand(8, 24)),
+      'objects.statueScale': () => rand(1.8, 3.0),
+      'objects.kanjiCount':  () => Math.floor(rand(10, 28)),
+      'objects.kanjiScale':  () => rand(2.2, 5),
+      'objects.bitmapCount': () => Math.floor(rand(15, 50)),
+      'objects.bitmapScale': () => rand(2, 4),
+      'objects.rayCount':    () => Math.floor(rand(40, 120)),
+    };
+    for (const [path, roll] of Object.entries(CHAOS_ROLLS)) {
+      if (Math.random() < p) {
+        const [sec, k] = path.split('.');
+        state[sec][k] = roll();
+      }
+    }
+  }
   // Magic wands: each dial has a 15% chance to come alive
   for (const key of Object.keys(state.wand)) {
     const was = state.wand[key];
@@ -711,8 +749,24 @@ function startAnimLoop() {
 let fxTick = 0;
 let fxRand = mulberry32(0x5EED);
 
+// Timelord: every time-based effect reads this virtual clock (ms) instead of
+// Date.now(). It only advances while animating, scaled by the overdrive
+// timelord dial -- so animation speed is one knob and pause is truly a pause.
+let virtClock = 0;
+let lastClockNow = 0;
+function timelordFactor() {
+  return state.overdrive.enabled ? state.overdrive.timelord : 1;
+}
+function tickClock(now) {
+  const dt = lastClockNow ? Math.min(100, now - lastClockNow) : 0;
+  lastClockNow = now;
+  if (state.static.animate) virtClock += dt * timelordFactor();
+}
+
 function render() {
-  tickWands(performance.now());
+  const now = performance.now();
+  tickClock(now);
+  tickWands(now);
   if (state.static.animate) fxTick++;
   fxRand = mulberry32((fxTick * 0x9E3779B9) ^ 0x5EED);
   // Reset scene
@@ -749,6 +803,7 @@ function render() {
   applyScanSweep(ctx);
   applyTelemetryHUD(ctx);
   applyAsciiMode(ctx);
+  applyHyperwarp(ctx);
   // Final film grain / CRT
   applyTVStatic(ctx);
   applyScanlines(ctx);
@@ -870,7 +925,7 @@ function drawSun(c) {
     const span = endY - startY;
     const gap = span / barCount;
     // Bars crawl downward when Animate is on (classic outrun horizon)
-    const scroll = state.static.animate ? (Date.now() * 0.012) % gap : 0;
+    const scroll = state.static.animate ? (virtClock * 0.012) % gap : 0;
     for (let i = 0; i < barCount; i++) {
       const yOff = (i * gap + scroll) % span;
       const t = yOff / span;
@@ -1071,7 +1126,7 @@ function drawPalm(c, x, baseY, scale, leansLeft) {
   const bend = (6 + p.curve * 44) * scale;   // 0 = ramrod straight, 1 = wind-blown
   // Sway -- fronds and crown breathe when Animate is on
   const swayA = (state.static.animate && p.sway > 0)
-    ? Math.sin(Date.now() * 0.0011 + x * 0.013) * p.sway * 0.22
+    ? Math.sin(virtClock * 0.0011 + x * 0.013) * p.sway * 0.22
     : 0;
   const neon = p.style === 'neon';
 
@@ -1817,6 +1872,42 @@ function applyGrain(c) {
   c.putImageData(img, 0, 0);
 }
 
+// OVERDRIVE :: HYPERWARP -- liquid slab displacement + drifting ghost
+// diffusion over the whole composited frame
+function applyHyperwarp(c) {
+  if (!state.overdrive.enabled) return;
+  const amt = state.overdrive.hyperwarp;
+  if (amt < 0.01) return;
+  const t = state.static.animate ? virtClock * 0.0016 : 0.6;
+
+  // Liquid warp: 6px slabs pushed around by two interfering sines
+  fxBufCtx.clearRect(0, 0, W, H);
+  fxBufCtx.drawImage(c.canvas, 0, 0);
+  // Backdrop of the unwarped frame so displaced slabs never expose the
+  // window background at the edges
+  c.drawImage(fxBuf, 0, 0);
+  const slab = 6;
+  for (let y = 0; y < H; y += slab) {
+    const dx = Math.sin(t * 1.3 + y * 0.021) * amt * 46 + Math.sin(t * 2.7 + y * 0.008) * amt * 18;
+    const dy = Math.cos(t * 1.1 + y * 0.013) * amt * 10;
+    c.drawImage(fxBuf, 0, y, W, slab, dx, y + dy, W, slab);
+  }
+
+  // Diffusion: stacked translucent ghosts orbiting outward + a zoom bloom
+  fxBufCtx.clearRect(0, 0, W, H);
+  fxBufCtx.drawImage(c.canvas, 0, 0);
+  c.save();
+  for (let i = 1; i <= 3; i++) {
+    c.globalAlpha = amt * 0.22 / i;
+    const a = t * 0.8 + i * 2.1;
+    c.drawImage(fxBuf, Math.cos(a) * amt * 9 * i, Math.sin(a * 1.4) * amt * 7 * i);
+  }
+  c.globalAlpha = amt * 0.15;
+  const z = 1 + amt * 0.05;
+  c.drawImage(fxBuf, W / 2 - W * z / 2, H / 2 - H * z / 2, W * z, H * z);
+  c.restore();
+}
+
 function applyVignette(c) {
   const amt = state.fx.vignette;
   if (amt < 0.01) return;
@@ -1870,7 +1961,7 @@ function applyWaveWarp(c) {
   fxBufCtx.drawImage(c.canvas, 0, 0);
   c.clearRect(0, 0, W, H);
   const amp = amt * 28;
-  const t = state.static.animate ? Date.now() * 0.001 : 0;
+  const t = state.static.animate ? virtClock * 0.001 : 0;
   const step = 4;
   for (let y = 0; y < H; y += step) {
     const dx = Math.sin(y * 0.04 + t * 1.4) * amp + Math.sin(y * 0.013 + t * 0.7) * amp * 0.4;
@@ -1961,7 +2052,7 @@ function applyTextOverlay(c) {
   c.font = 'bold 28px "VT323", "Silkscreen", monospace';
 
   if (s.recBadge) {
-    const blink = s.animate ? (Math.floor(Date.now() / 600) % 2) : 1;
+    const blink = s.animate ? (Math.floor(virtClock / 600) % 2) : 1;
     if (blink) {
       c.fillStyle = '#ff003c';
       c.beginPath(); c.arc(40, 38, 10, 0, Math.PI * 2); c.fill();
@@ -1971,7 +2062,7 @@ function applyTextOverlay(c) {
   }
 
   if (s.vhsCounter) {
-    const totalSec = s.animate ? Math.floor(Date.now() / 1000) % 36000 : 1487;
+    const totalSec = s.animate ? Math.floor(virtClock / 1000) % 36000 : 1487;
     const hh = Math.floor(totalSec / 3600);
     const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
     const ss = (totalSec % 60).toString().padStart(2, '0');
@@ -1984,7 +2075,7 @@ function applyTextOverlay(c) {
     const repeat = hex + hex + hex + hex;
     c.font = '20px "VT323", monospace';
     c.fillStyle = 'rgba(255,45,149,0.85)';
-    const offset = s.animate ? -((Date.now() * 0.06) % 200) : 0;
+    const offset = s.animate ? -((virtClock * 0.06) % 200) : 0;
     c.fillText(repeat, offset, H - 10);
   }
 
@@ -2028,7 +2119,7 @@ function applyMatrixRain(c) {
 
     const chars = MATRIX_CHARSETS[state.android.matrixChars] || MATRIX_CHARSETS.kana;
     const color = state.android.matrixColor;
-    const stepBase = cellSize * 1.4 * state.android.matrixSpeed;
+    const stepBase = cellSize * 1.4 * state.android.matrixSpeed * timelordFactor();
 
     for (let i = 0; i < cols; i++) {
       const x = i * cellSize;
@@ -2082,7 +2173,7 @@ function applyRollingBand(c) {
   const amt = state.android.rollingBand;
   if (amt < 0.01) return;
   const animating = state.static.animate;
-  const t = animating ? Date.now() * 0.0005 : 0.35;
+  const t = animating ? virtClock * 0.0005 : 0.35;
   const bandY = ((t * H) % (H + 120)) - 60;
   const bandH = 60;
   if (bandY <= -bandH || bandY >= H) return;
@@ -2158,7 +2249,7 @@ function applyReticle(c) {
 function applyScanSweep(c) {
   if (!state.android.scanSweep) return;
   const animating = state.static.animate;
-  const t = animating ? Date.now() * 0.0015 : 0.3;
+  const t = animating ? virtClock * 0.0015 : 0.3;
   const sweepY = (Math.sin(t) * 0.5 + 0.5) * H;
   const color = state.android.matrixColor;
   c.save();
@@ -2499,6 +2590,16 @@ masterAnimate.addEventListener('input', () => {
   syncUIFromState();
   requestRender();
 });
+// Overdrive switch expands the advanced panel
+const masterOverdrive = document.getElementById('master-overdrive');
+const overdrivePanel = document.getElementById('overdrive-panel');
+masterOverdrive.checked = state.overdrive.enabled;
+overdrivePanel.hidden = !state.overdrive.enabled;
+masterOverdrive.addEventListener('input', () => {
+  state.overdrive.enabled = masterOverdrive.checked;
+  overdrivePanel.hidden = !state.overdrive.enabled;
+  requestRender();
+});
 document.getElementById('sound-play').addEventListener('click', () => {
   Sound.start();
   document.getElementById('snd-status').textContent = 'PLAYING';
@@ -2564,9 +2665,13 @@ function refreshFxStatus() {
     const aCnt = Object.keys(droids).filter(k => state.android[k] > 0.05).length + droidFlags.length;
     aBar.textContent = aCnt > 0 ? `${aCnt} ONLINE` : 'DORMANT';
   }
-  // Master toggle mirrors static.animate however it was changed
+  // Master toggles mirror state however it was changed (hash, randomize...)
   const mAnim = document.getElementById('master-animate');
   if (mAnim) mAnim.checked = state.static.animate;
+  const mOver = document.getElementById('master-overdrive');
+  const oPanel = document.getElementById('overdrive-panel');
+  if (mOver) mOver.checked = state.overdrive.enabled;
+  if (oPanel) oPanel.hidden = !state.overdrive.enabled;
 }
 const origRequestRender = requestRender;
 requestRender = function() {
