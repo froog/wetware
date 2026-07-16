@@ -2640,12 +2640,13 @@ const Sound = (() => {
       input.connect(delay); delay.connect(output);
       rack.warble = { input, output };
     }
-    // WOBBLE -- tremolo (LFO on gain)
+    // WOBBLE -- gentle tremolo (LFO on gain). Kept well above silence so it
+    // pulses rather than stuttering the sound to a stop.
     {
       const input = ac.createGain(), output = ac.createGain();
-      const vca = ac.createGain(); vca.gain.value = 0.55;
-      const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 4;
-      const depth = ac.createGain(); depth.gain.value = 0.45;
+      const vca = ac.createGain(); vca.gain.value = 0.72;   // floor ~0.46
+      const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 3;
+      const depth = ac.createGain(); depth.gain.value = 0.26;
       lfo.connect(depth); depth.connect(vca.gain); lfo.start();
       input.connect(vca); vca.connect(output);
       rack.wobble = { input, output };
